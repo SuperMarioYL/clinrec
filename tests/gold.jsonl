@@ -1,0 +1,22 @@
+{"text": "Type 2 diabetes", "type": "CONDITION", "code": "E11.9", "system": "ICD-10"}
+{"text": "diabetes mellitus", "type": "CONDITION", "code": "E11.9", "system": "ICD-10"}
+{"text": "hypertension", "type": "CONDITION", "code": "I10", "system": "ICD-10"}
+{"text": "atrial fibrillation", "type": "CONDITION", "code": "I48.91", "system": "ICD-10"}
+{"text": "hyperlipidemia", "type": "CONDITION", "code": "E78.5", "system": "ICD-10"}
+{"text": "copd", "type": "CONDITION", "code": "J44.9", "system": "ICD-10"}
+{"text": "pneumonia", "type": "CONDITION", "code": "J18.9", "system": "ICD-10"}
+{"text": "myocardial infarction", "type": "CONDITION", "code": "I21.9", "system": "ICD-10"}
+{"text": "stroke", "type": "CONDITION", "code": "I63.9", "system": "ICD-10"}
+{"text": "hypothyroidism", "type": "CONDITION", "code": "E03.9", "system": "ICD-10"}
+{"text": "metformin 500 mg", "type": "MEDICATION", "code": "6809", "system": "RxNorm"}
+{"text": "lisinopril 10 mg", "type": "MEDICATION", "code": "29046", "system": "RxNorm"}
+{"text": "atorvastatin 40 mg", "type": "MEDICATION", "code": "83367", "system": "RxNorm"}
+{"text": "metoprolol 25 mg", "type": "MEDICATION", "code": "8948", "system": "RxNorm"}
+{"text": "warfarin 5 mg", "type": "MEDICATION", "code": "11289", "system": "RxNorm"}
+{"text": "levothyroxine 75 mcg", "type": "MEDICATION", "code": "1153403", "system": "RxNorm"}
+{"text": "aspirin 81 mg", "type": "MEDICATION", "code": "1191", "system": "RxNorm"}
+{"text": "prednisone 40 mg", "type": "MEDICATION", "code": "8640", "system": "RxNorm"}
+{"text": "echocardiogram", "type": "PROCEDURE", "code": "93306", "system": "CPT"}
+{"text": "colonoscopy", "type": "PROCEDURE", "code": "45378", "system": "CPT"}
+{"text": "ct scan", "type": "PROCEDURE", "code": "71260", "system": "CPT"}
+{"text": "stress test", "type": "PROCEDURE", "code": "93015", "system": "CPT"}

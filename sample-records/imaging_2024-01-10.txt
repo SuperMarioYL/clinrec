@@ -1,0 +1,27 @@
+FAX TRANSMITTAL — DE-IDENTIFIED
+IMAGING / LAB RESULT
+To: Dr. A. Rivera, Internal Medicine
+From: Mercy General Hospital, Radiology
+Date: 01/10/2024
+Patient: [DE-IDENTIFIED]   MRN: SYNTH-0001
+
+CT CHEST WITH CONTRAST (01/10/2024):
+Findings: There is a dense consolidation in the right lower lobe consistent
+with pneumonia. No pleural effusion. No pneumothorax. The cardiac
+silhouette is normal. No pulmonary embolism.
+
+IMPRESSION:
+1. Right lower lobe pneumonia.
+2. No acute cardiopulmonary findings.
+
+ECHOCARDIOGRAM (01/13/2024):
+Findings: Left ventricular ejection fraction 45%. Mild concentric left
+ventricular hypertrophy. No pericardial effusion. Left atrial enlargement
+consistent with atrial fibrillation.
+
+IMPRESSION:
+1. Mildly reduced ejection fraction.
+2. Atrial fibrillation morphology.
+
+RADIOLOGIST:
+Dr. David Okafor, MD

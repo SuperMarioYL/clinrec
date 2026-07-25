@@ -1,0 +1,27 @@
+FAX TRANSMITTAL — DE-IDENTIFIED
+MEDICATION RECONCILIATION
+To: Dr. A. Rivera, Internal Medicine
+From: Mercy General Hospital, Pharmacy
+Date: 02/20/2024
+Patient: [DE-IDENTIFIED]   MRN: SYNTH-0001
+
+HOME MEDICATIONS (confirmed with patient):
+1. Metformin 500 mg twice daily
+2. Lisinopril 10 mg every morning
+3. Atorvastatin 40 mg at bedtime
+4. Metoprolol 25 mg twice daily
+5. Warfarin 5 mg daily (atrial fibrillation)
+6. Levothyroxine 75 mcg daily (hypothyroidism)
+7. Aspirin 81 mg daily
+
+DISCONTINUED DURING ADMISSION:
+- Prednisone taper (completed)
+
+NEW PRESCRIPTIONS:
+- None today
+
+ALLERGIES:
+- Penicillin (rash)
+
+PHARMACIST:
+John Park, PharmD

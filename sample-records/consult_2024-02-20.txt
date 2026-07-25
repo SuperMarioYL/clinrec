@@ -1,0 +1,33 @@
+FAX TRANSMITTAL — DE-IDENTIFIED
+To: Dr. A. Rivera, Internal Medicine
+From: Dr. Jane Smith, Cardiology Associates
+Date: 02/20/2024
+Pages: 1
+
+CONSULT NOTE — CARDIOLOGY
+Patient: [DE-IDENTIFIED]   MRN: SYNTH-0001
+Date of consult: 02/20/2024
+
+REASON FOR CONSULT:
+Follow-up after recent hospitalization for COPD exacerbation and pneumonia.
+Patient reports history of atrial fibrillation and prior myocardial
+infarction. Today the patient denies chest pain, denies shortness of
+breath, and denies palpitations.
+
+ASSESSMENT:
+1. Atrial fibrillation — rate controlled on metoprolol. Continue warfarin.
+2. Coronary artery disease — history of myocardial infarction (2019).
+   Patient reports history of stroke in 2018, currently without deficits.
+3. Hypertension — well controlled. Continue lisinopril.
+4. Hyperlipidemia — Continue atorvastatin. LDL at goal.
+5. Type 2 diabetes — Continue metformin. A1c pending.
+
+RECOMMENDATIONS:
+- Continue metoprolol, warfarin, lisinopril, atorvastatin, metformin.
+- Repeat echocardiogram in 6 months.
+- Stress test if new symptoms.
+- Follow-up in 3 months.
+
+Signed,
+Dr. Jane Smith, MD, FACC
+Cardiology Associates

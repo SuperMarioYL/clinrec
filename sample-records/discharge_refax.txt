@@ -1,0 +1,55 @@
+fax transmittal — de-identified
+  to: dr. a. rivera, internal medicine
+  from: mercy general hospital, discharge planning
+  date: 01/15/2024
+  pages: 2
+   
+
+  discharge summary
+  patient: [de-identified]   mrn: synth-0001
+  dob: [redacted]            encounter: 01/12/2024 – 01/15/2024
+   
+
+  history of present illness:
+  patient is a 62-year-old admitted for shortness of breath and found to have
+  an acute exacerbation of copd. past medical history is significant for
+  type 2 diabetes, hypertension, hyperlipidemia, and atrial fibrillation.
+  patient reports a prior myocardial infarction in 2019.
+   
+
+  hospital course:
+  on admission, the patient was started on iv antibiotics for pneumonia and
+  oral prednisone for the copd exacerbation. metformin was held during the
+  acute illness; lisinopril and atorvastatin were continued. the patient's
+  atrial fibrillation was rate-controlled with metoprolol. an echocardiogram
+  showed an ejection fraction of 45%. a ct scan of the chest confirmed the
+  pneumonia. dr. jane smith, cardiology, was consulted.
+   
+
+  discharge medications:
+  - metformin 500 mg bid
+  - lisinopril 10 mg daily
+  - atorvastatin 40 mg daily
+  - metoprolol 25 mg bid
+  - warfarin 5 mg daily (for atrial fibrillation)
+  - prednisone 40 mg taper
+   
+
+  discharge diagnoses:
+  1. copd exacerbation
+  2. pneumonia
+  3. type 2 diabetes
+  4. hypertension
+  5. atrial fibrillation
+  6. hyperlipidemia
+   
+
+  follow-up:
+  cardiology with dr. jane smith on 02/20/2024.
+  primary care with dr. a. rivera on 01/22/2024.
+   
+
+  signed,
+  dr. maria chen, md
+  attending, hospitalist service
+  
