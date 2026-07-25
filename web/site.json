@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "name": "clinrec",
+  "github": "https://github.com/SuperMarioYL/clinrec",
+  "host": "clinrec.lei6393.com",
+  "lang": { "primary": "en", "toggle": true },
+  "accent": ["#8b7cf6", "#4d9bff", "#34e5d0"],
+  "hero": {
+    "eyebrow": {
+      "zh": "病历不出院 · 可审查时间线 · 逐步审计",
+      "en": "PHI stays on-prem · Reviewable timeline · Audit-stamped"
+    },
+    "headline": {
+      "zh": "把传真病历变成可审查的临床时间线",
+      "en": "Turn faxed records into a reviewable clinical timeline"
+    },
+    "sub": {
+      "zh": "在一台机器上入库传真与扫描病历,解析成编码临床事件,组装去重时间线 —— 病历不出本机,每一步都带审计戳。",
+      "en": "Ingest faxed and scanned records on one host, resolve them into coded clinical events, and assemble a de-duplicated timeline — PHI never leaves, every step audit-stamped."
+    },
+    "command": "clinrec ingest ./sample-records",
+    "cta": { "zh": "立即开始", "en": "Get started" },
+    "ctaGithub": { "zh": "在 GitHub 查看", "en": "View on GitHub" },
+    "scroll": { "zh": "向下滚动", "en": "Scroll to explore" }
+  },
+  "advantages": [
+    {
+      "title": { "zh": "病历不出院", "en": "PHI never leaves the box" },
+      "body": {
+        "zh": "传真与扫描的病历在一台机器上就地处理,零云调用 —— 不再让病历出站,承担 HIPAA 违规风险。",
+        "en": "Fax and scanned records are processed on a single host with zero cloud calls — no more HIPAA breach from records leaving the site."
+      },
+      "chips": ["› Zero cloud calls", "› Single host", "› HIPAA-friendly"]
+    },
+    {
+      "title": { "zh": "杂乱病历,解析成编码", "en": "Messy records, resolved to codes" },
+      "body": {
+        "zh": "重复传真、自由文本就诊、残缺结构化字段 —— 全部解析成病情、用药、操作、日期、机构的编码临床事件,而不是一堆互不相干的文本片段。",
+        "en": "Repeat faxes, free-text encounters, partial structured fields — all resolved into coded clinical events for conditions, meds, procedures, dates, and providers, not disjoint text fragments."
+      },
+      "chips": ["› Conditions to codes", "› Meds to codes", "› Procedures to codes"]
+    },
+    {
+      "title": { "zh": "去重时间线", "en": "A de-duplicated timeline" },
+      "body": {
+        "zh": "同一份就诊的重复传真被识别并合并,汇成一条按日期排列、带证据片段的临床时间线 —— 而不是同一事件出现三次。",
+        "en": "Repeat faxes of the same encounter are recognized and merged into one dated, evidence-linked timeline — not the same event three times."
+      },
+      "chips": ["› No duplicate events", "› Dated timeline", "› Evidence-linked"]
+    },
+    {
+      "title": { "zh": "逐步可审计", "en": "Audit-ready, step by step" },
+      "body": {
+        "zh": "每一次抽取都记一条审计记录,审查方仅凭本机产物就能复现整条链 —— 导出审计日志,直接交给合规。",
+        "en": "Every extraction step is recorded as an audit entry a regulator can replay from local artifacts alone — export the audit log straight to compliance."
+      },
+      "chips": ["› Every step logged", "› Replayable chain", "› Exportable log"]
+    },
+    {
+      "title": { "zh": "质量可证伪", "en": "Quality you can falsify" },
+      "body": {
+        "zh": "内置质量检查在去标识样本上报告精确率与召回率,对比基线 —— 达不到这条线,这个原语就不该存在。不是黑盒。",
+        "en": "A built-in quality check reports precision and recall on a de-identified sample against a baseline — miss the bar and the primitive shouldn't exist. Not a black box."
+      },
+      "chips": ["› Measurable precision", "› Measurable recall", "› De-identified sample"]
+    }
+  ],
+  "scene": {
+    "kind": "hub-nodes",
+    "nodes": ["Faxed records", "Scanned files", "Clinical entities", "Timeline"]
+  },
+  "cta": {
+    "headline": {
+      "zh": "把传真病历变成可审查的时间线",
+      "en": "Turn faxed records into a reviewable timeline"
+    },
+    "sub": {
+      "zh": "开源原语免费;ClinRec Pro 提供本地化部署托管与监管级审计包。",
+      "en": "The OSS primitive is free; ClinRec Pro adds managed on-prem deployment and a regulator-grade audit pack."
+    },
+    "button": { "zh": "在 GitHub 开始", "en": "Get started on GitHub" }
+  },
+  "footer": {
+    "tag": {
+      "zh": "本地化临床时间线原语 —— 病历不出院",
+      "en": "The on-prem clinical-timeline primitive — PHI never leaves the box"
+    }
+  }
+}
