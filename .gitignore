@@ -50,3 +50,6 @@ audit.jsonl
 # Agent scratch (do not ship)
 .claude/
 CLAUDE.md
+.spawn.*
+.tester_report.yaml
+.evaluator_report.yaml
