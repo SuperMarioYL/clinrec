@@ -72,6 +72,21 @@ def _read_config(path: Path) -> dict:
     return cfg
 
 
+def _ingest_extractor_id(mime: str) -> str:
+    """Map a record mime to the on-prem extractor that produced its text.
+
+    Mirrors ingest.extract_text: pdfplumber for PDF, tesseract OCR for
+    images, and path.read_text for everything else (.txt/.md/.rtf). The
+    audit docstring records the model id that produced the record, so a
+    false 'pdfplumber' id for a .txt record would mislead a regulator.
+    """
+    if mime.startswith("image"):
+        return "ocr+tesseract"
+    if mime == "application/pdf":
+        return "pdfplumber"
+    return "text"
+
+
 @app.command()
 def init(
     host: str = typer.Option(DEFAULT_HOST, "--host", help="Ollama daemon URL."),
@@ -136,7 +151,7 @@ def ingest(
         audit.record(
             op="ingest",
             input_sha256=rec.content_sha256,
-            llm_model_id="ocr+tesseract" if rec.mime.startswith("image") else "pdfplumber",
+            llm_model_id=_ingest_extractor_id(rec.mime),
             output_sha256=rec.content_sha256,
         )
 

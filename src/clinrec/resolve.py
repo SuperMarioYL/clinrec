@@ -213,13 +213,26 @@ def _trim_provider_span(text: str, start: int, end: int) -> tuple[int, int, str]
         if last_word and last_word[0].isupper() and last_word.lower() not in _PROVIDER_STOPWORDS:
             break
         tokens.pop()
-    # recompute end by joining the kept tokens with single spaces
-    kept = " ".join(tokens)
-    # find the kept prefix inside the original span text (preserve spacing)
-    new_end = start + len(kept)
-    # walk back to a non-trailing-whitespace boundary
-    while new_end > start and text[new_end - 1].isspace():
-        new_end -= 1
+    # Recompute the end offset by walking the kept tokens forward over the
+    # ORIGINAL whitespace. medspaCy spans often contain internal multi-space
+    # (its `\s+` regex preserves them in ent.text); a single-space rejoin
+    # (`new_end = start + len(" ".join(tokens))`) is shorter than the real
+    # prefix, so text[start:new_end] cuts into the final name token — e.g.
+    # "Dr.  Jane  Smith  noted" wrongly returns "Dr.  Jane  Smi". Each
+    # split() token is a contiguous non-whitespace run, so skipping whitespace
+    # then matching the token verbatim lands new_end on the true end of the
+    # last kept name token, preserving the span text + offset persisted to
+    # state.json for audit-replay fidelity.
+    pos = start
+    new_end = end  # conservative: if a token can't be verbatim-matched, don't trim past it
+    for tok in tokens:
+        while pos < end and text[pos].isspace():
+            pos += 1
+        if pos + len(tok) <= end and text[pos:pos + len(tok)] == tok:
+            pos += len(tok)
+            new_end = pos
+        else:
+            break
     return start, new_end, text[start:new_end]
 
 

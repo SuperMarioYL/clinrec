@@ -185,6 +185,15 @@ class TimelineAssembler:
 
         for rec in records:
             raw = self.extractor.extract(rec.ocr_text, rec.record_id)
+            # Record the NER op so a regulator can replay which engine
+            # (medspacy vs regex) produced each record's spans + their
+            # input/output hashes — mirrors resolve_record's ner call.
+            self.audit.record(
+                op="ner",
+                input_sha256=rec.content_sha256,
+                llm_model_id="medspacy" if self.extractor.uses_medspacy else "regex",
+                output_sha256=sha256_text("|".join(r.text_span for r in raw)),
+            )
             per_record_raw[rec.record_id] = raw
             for r in raw:
                 lr = self.linker.link(r.text_span, r.entity_type)
