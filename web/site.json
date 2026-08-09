@@ -51,10 +51,10 @@
     {
       "title": { "zh": "逐步可审计", "en": "Audit-ready, step by step" },
       "body": {
-        "zh": "每一次抽取都记一条审计记录,审查方仅凭本机产物就能复现整条链 —— 导出审计日志,直接交给合规。",
-        "en": "Every extraction step is recorded as an audit entry a regulator can replay from local artifacts alone — export the audit log straight to compliance."
+        "zh": "每一次抽取都记一条审计记录,每条记录与前一条密码学链接 —— 审查方仅凭本机产物就能复现整条链,任何篡改都会在断链处暴露。导出审计日志,直接交给合规。",
+        "en": "Every extraction step is recorded as an audit entry, each cryptographically linked to its predecessor — a regulator can replay the chain from local artifacts alone, and any tampering breaks the chain. Export the audit log straight to compliance."
       },
-      "chips": ["› Every step logged", "› Replayable chain", "› Exportable log"]
+      "chips": ["› Every step logged", "› Tamper-evident chain", "› Exportable log"]
     },
     {
       "title": { "zh": "质量可证伪", "en": "Quality you can falsify" },
