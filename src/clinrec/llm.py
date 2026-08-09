@@ -77,7 +77,7 @@ _RXNORM = {
     "liraglutide": "86009", "semaglutide": "206832",
     # acei / arb / ccb
     "lisinopril": "29046", "enalapril": "351131", "ramipril": "74905",
-    "losartan": "9olsartan"[:0] or "83813", "valsartan": "84062",
+    "losartan": "83813", "valsartan": "84062",
     "olmesartan": "84055", "amlodipine": "89653", "nifedipine": "7577",
     # statins
     "atorvastatin": "83367", "simvastatin": "36567", "rosuvastatin": "857605",
@@ -99,7 +99,7 @@ _RXNORM = {
     "gabapentin": "2554", "sertraline": "36437", "fluoxetine": "4493",
     "citalopram": "2670", "escitalopram": "1247434",
     # respiratory
-    "albuterol": "1130", "montelukast": "115199", "fluticasone": "4493"[:0] or "25278",
+    "albuterol": "1130", "montelukast": "115199", "fluticasone": "25278",
     # steroids
     "prednisone": "8640", "hydrocortisone": "5456",
     # antibiotics
@@ -111,9 +111,6 @@ _RXNORM = {
     # trimethoprim/sulfa
     "trimethoprim": "10685", "sulfamethoxazole": "4458",
 }
-# fix the placeholder mistakes above with real CUIs (clean, deterministic)
-_RXNORM["losartan"] = "83813"
-_RXNORM["fluticasone"] = "25278"
 
 _CPT = {
     "colonoscopy": "45378", "mammogram": "77067", "mammography": "77067",

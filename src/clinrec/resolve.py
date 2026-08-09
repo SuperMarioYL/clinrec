@@ -56,7 +56,7 @@ _MEDICATIONS = [
     "rivaroxaban", "heparin", "furosemide", "spironolactone",
     "hydrochlorothiazide", "levothyroxine", "omeprazole", "pantoprazole",
     "gabapentin", "sertraline", "fluoxetine", "citalopram", "escitalopram",
-    "amlodipine", "albuterol", "montelukast", "fluticasone", "prednisone",
+    "albuterol", "montelukast", "fluticasone", "prednisone",
     "hydrocortisone", "amoxicillin", "azithromycin", "ciprofloxacin",
     "doxycycline", "trimethoprim", "sulfamethoxazole", "metronidazole",
     "acetaminophen", "ibuprofen", "naproxen", "morphine", "hydromorphone",

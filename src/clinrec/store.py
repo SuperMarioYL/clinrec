@@ -56,6 +56,8 @@ class State:
                     "output_sha256": a.output_sha256,
                     "ts": a.ts.isoformat(),
                     "phi_egress": a.phi_egress,
+                    "prev_chain_hash": a.prev_chain_hash,
+                    "chain_hash": a.chain_hash,
                 }
                 for a in timeline.audit_chain
             ],

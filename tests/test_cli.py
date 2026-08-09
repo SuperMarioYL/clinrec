@@ -31,7 +31,7 @@ def _write_sample(folder: Path) -> None:
 def test_cli_version():
     res = runner.invoke(app, ["version"])
     assert res.exit_code == 0
-    assert "0.1.0" in res.stdout
+    assert "0.3.0" in res.stdout
 
 
 def test_cli_init_writes_config(tmp_path, monkeypatch):

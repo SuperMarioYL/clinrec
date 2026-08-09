@@ -89,6 +89,12 @@ clinrec timeline                       # Rich TUI: browse de-duplicated events +
 ```
 </details>
 
+<p align="center">
+  <b>⭐ Star this repo</b> if ClinRec saves you from rebuilding the same ingestion layer —
+  and <a href="https://github.com/SuperMarioYL/clinrec/issues">file a feature request</a>
+  for the one thing you wish it did next. Every issue shapes the next version.
+</p>
+
 <h2><img src="https://api.iconify.design/tabler:terminal-2.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> Usage</h2>
 
 The five most common workflows. Full reference: `clinrec --help`.

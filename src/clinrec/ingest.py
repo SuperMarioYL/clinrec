@@ -69,6 +69,24 @@ def _read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="replace")
 
 
+def _read_rtf(path: Path) -> str:
+    """Strip RTF markup to plain text via the striprtf package.
+
+    RTF files contain control-word markup (``{\\rtf1\\ansi\\deff0...}``) that
+    would shift NER span offsets and feed garbage to the entity extractor.
+    Falls back to raw ``read_text`` when striprtf is not installed so the CLI
+    never crashes.
+    """
+    raw = path.read_text(encoding="utf-8", errors="replace")
+    try:
+        from striprtf.striprtf import rtf_to_text
+
+        return rtf_to_text(raw)
+    except Exception:  # noqa: BLE001 — fail-soft to raw text
+        log.warning("striprtf unavailable — returning raw RTF text for %s", path)
+        return raw
+
+
 def extract_text(path: Path) -> str:
     """Extract text from a single file according to its mime/extension.
 
@@ -80,6 +98,8 @@ def extract_text(path: Path) -> str:
     try:
         if ext == ".pdf":
             return _read_pdf(path)
+        if ext == ".rtf":
+            return _read_rtf(path)
         if ext in _IMAGE_EXTS:
             return _read_image(path)
         return _read_text(path)

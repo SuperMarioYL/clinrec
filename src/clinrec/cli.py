@@ -218,6 +218,11 @@ def audit(
             f"[green]phi_egress invariant[/green]: "
             f"{'PASS — no PHI ever left the host' if invariant else '[red]FAIL — investigate[/red]'}"
         )
+        chain_ok = chain.verify_chain_integrity()
+        console.print(
+            f"[green]audit chain integrity[/green]: "
+            f"{'PASS — linked hash chain unbroken' if chain_ok else '[red]FAIL — chain tampered[/red]'}"
+        )
 
 
 @app.command()

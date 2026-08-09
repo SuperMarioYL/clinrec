@@ -123,6 +123,12 @@ class AuditEntry(BaseModel):
     output_sha256: str = ""
     ts: datetime = Field(default_factory=_utcnow)
     phi_egress: bool = False
+    # v0.3.0 — tamper-evidence: each entry's chain_hash incorporates the
+    # predecessor's chain_hash, forming a linked hash chain. prev_chain_hash
+    # is "" for the first entry. verify_chain_integrity() detects reordering
+    # or silent insertion/modification of any past entry.
+    prev_chain_hash: str = ""
+    chain_hash: str = ""
 
 
 class EvidenceSpan(BaseModel):

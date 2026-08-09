@@ -57,7 +57,16 @@ class AuditChain:
         The ``phi_egress`` parameter exists only so a future cloud-egress
         detector could flag a regression; the current primitive guarantees
         it is False for every op (no PHI ever leaves the host).
+
+        v0.3.0 — tamper-evidence: each entry's ``chain_hash`` incorporates
+        the predecessor's ``chain_hash``, forming a linked hash chain. A
+        regulator can call ``verify_chain_integrity()`` to detect reordering
+        or silent insertion/modification of any past entry.
         """
+        prev_hash = self._entries[-1].chain_hash if self._entries else ""
+        chain_hash = sha256_text(
+            f"{prev_hash}|{op}|{input_sha256}|{llm_model_id}|{output_sha256}"
+        )
         entry = AuditEntry(
             op=op,
             input_sha256=input_sha256,
@@ -65,6 +74,8 @@ class AuditChain:
             prompt_sha256=prompt_sha256,
             output_sha256=output_sha256,
             phi_egress=phi_egress,
+            prev_chain_hash=prev_hash,
+            chain_hash=chain_hash,
         )
         self._entries.append(entry)
         return entry
@@ -101,6 +112,23 @@ class AuditChain:
         """Return True iff no entry ever flagged PHI egress (primitive guarantee)."""
         return all(not e.phi_egress for e in self._entries)
 
+    def verify_chain_integrity(self) -> bool:
+        """Return True iff the linked hash chain is unbroken (tamper-evidence).
+
+        Recomputes each entry's ``chain_hash`` from its predecessor's and the
+        op fields; any reordering, insertion, or modification of a past entry
+        breaks the chain at that point.
+        """
+        prev = ""
+        for e in self._entries:
+            expected = sha256_text(
+                f"{prev}|{e.op}|{e.input_sha256}|{e.llm_model_id}|{e.output_sha256}"
+            )
+            if e.prev_chain_hash != prev or e.chain_hash != expected:
+                return False
+            prev = e.chain_hash
+        return True
+
     def last_for_op(self, op: str) -> AuditEntry | None:
         for e in reversed(self._entries):
             if e.op == op:
@@ -122,6 +150,8 @@ class AuditChain:
                     "output_sha256": e.output_sha256,
                     "ts": e.ts.isoformat(),
                     "phi_egress": e.phi_egress,
+                    "prev_chain_hash": e.prev_chain_hash,
+                    "chain_hash": e.chain_hash,
                 }
                 fh.write(json.dumps(row, sort_keys=True) + "\n")
         return out
@@ -137,6 +167,8 @@ class AuditChain:
                 "output_sha256": e.output_sha256,
                 "ts": e.ts.isoformat(),
                 "phi_egress": e.phi_egress,
+                "prev_chain_hash": e.prev_chain_hash,
+                "chain_hash": e.chain_hash,
             }
             for e in self._entries
         ]
@@ -160,6 +192,8 @@ class AuditChain:
                     output_sha256=row.get("output_sha256", ""),
                     ts=ts_dt,
                     phi_egress=bool(row.get("phi_egress", False)),
+                    prev_chain_hash=row.get("prev_chain_hash", ""),
+                    chain_hash=row.get("chain_hash", ""),
                 )
             )
         return chain
