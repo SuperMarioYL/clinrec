@@ -36,6 +36,17 @@ def test_extractor_returns_negation_for_denies():
     assert any(e.text_span.lower() == "diabetes" for e in active), "diabetes should be active"
 
 
+def test_negation_does_not_cross_sentence_boundary():
+    # v0.4.0 fix-negation-scope-cross-sentence: a negation cue in one sentence
+    # must not leak across the sentence terminator into a later sentence.
+    ex = EntityExtractor()
+    ents = ex.extract("Patient denies hypertension. Has diabetes. Denies asthma.", "rec1")
+    by_span = {e.text_span.lower(): e for e in ents}
+    assert by_span["hypertension"].is_negated, "hypertension shares a sentence with 'denies'"
+    assert not by_span["diabetes"].is_negated, "diabetes is in a later sentence; must NOT be negated"
+    assert by_span["asthma"].is_negated, "asthma shares its own sentence with 'denies'"
+
+
 def test_extractor_empty_text_returns_empty():
     ex = EntityExtractor()
     assert ex.extract("", "rec1") == []

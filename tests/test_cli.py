@@ -31,7 +31,7 @@ def _write_sample(folder: Path) -> None:
 def test_cli_version():
     res = runner.invoke(app, ["version"])
     assert res.exit_code == 0
-    assert "0.3.0" in res.stdout
+    assert "0.4.0" in res.stdout
 
 
 def test_cli_init_writes_config(tmp_path, monkeypatch):
@@ -102,6 +102,27 @@ def test_cli_timeline_runs_tui(tmp_path, monkeypatch):
     res = runner.invoke(app, ["timeline"], input="q\n")
     assert res.exit_code == 0
     assert "Clinical Timeline" in res.stdout or "No timeline events" in res.stdout
+
+
+def test_cli_timeline_json(tmp_path, monkeypatch):
+    # v0.4.0 feat-timeline-json-export: --json emits the de-duplicated
+    # timeline events as a JSON array that round-trips into a list.
+    monkeypatch.chdir(tmp_path)
+    sample = tmp_path / "sample-records"
+    sample.mkdir()
+    _write_sample(sample)
+    runner.invoke(app, ["ingest", str(sample)])
+    res = runner.invoke(app, ["timeline", "--json"])
+    assert res.exit_code == 0, res.stdout
+    events = json.loads(res.stdout)
+    assert isinstance(events, list)
+    assert len(events) >= 1
+    # each event carries the regulator-reviewable fields
+    for ev in events:
+        assert "event_id" in ev
+        assert "entity_type" in ev
+        assert "normalized_code" in ev
+        assert "status" in ev
 
 
 def test_cli_eval_runs(tmp_path, monkeypatch):

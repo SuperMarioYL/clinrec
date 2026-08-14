@@ -126,13 +126,33 @@ def _build_rules() -> list[tuple[str, EntityType, Optional[str]]]:
 
 
 def _span_negated(text: str, span_start: int, span_end: int) -> bool:
-    window = text[max(0, span_start - 40):span_start].lower()
+    s = _sentence_start(text, span_start)
+    window = text[s:span_start].lower()
     return any(cue in window for cue in _NEGATION_CUES)
 
 
 def _span_historical(text: str, span_start: int, span_end: int) -> bool:
-    window = text[max(0, span_start - 40):span_start].lower()
+    s = _sentence_start(text, span_start)
+    window = text[s:span_start].lower()
     return any(cue in window for cue in _HISTORICAL_CUES)
+
+
+# A sentence terminator: a [.?!] followed by whitespace, or a newline. Used to
+# bound negation/historical cue scans to the entity's OWN sentence so a cue in
+# a prior sentence does not leak across the boundary (v0.4.0
+# fix-negation-scope-cross-sentence). Previously the scan used a fixed 40-char
+# pre-window, so "Patient denies hypertension. Has diabetes." negated
+# "diabetes" via the prior sentence's "denies".
+_SENT_BREAK = re.compile(r"[.!?]\s+|\n+")
+
+
+def _sentence_start(text: str, span_start: int) -> int:
+    """Return the char offset where the entity's own sentence begins (the end
+    of the last sentence terminator before the span), or 0."""
+    start = 0
+    for m in _SENT_BREAK.finditer(text[:span_start]):
+        start = m.end()
+    return start
 
 
 # ---------------------------------------------------------------------------

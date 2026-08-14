@@ -9,6 +9,7 @@ Commands:
 """
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 from typing import Optional
@@ -181,13 +182,23 @@ def ingest(
 
 
 @app.command()
-def timeline() -> None:
-    """Browse the de-duplicated timeline (Rich TUI)."""
+def timeline(
+    json_out: bool = typer.Option(
+        False, "--json", help="Emit the de-duplicated timeline events as a JSON array on stdout instead of the TUI."
+    ),
+) -> None:
+    """Browse the de-duplicated timeline (Rich TUI), or emit events as JSON."""
     state = State()
     if not state.exists():
         console.print("[yellow]No state found. Run [cyan]clinrec ingest <folder>[/cyan] first.[/yellow]")
         raise typer.Exit(code=1)
     tl, _dedup, _cfg = state.load()
+    if json_out:
+        # v0.4.0 feat-timeline-json-export: machine-readable resolved timeline
+        # for a regulator/CI/agent consumer (the TUI is human-only; audit
+        # --export covers the audit chain, not the events themselves).
+        typer.echo(json.dumps([e.model_dump(mode="json") for e in tl.events], indent=2, default=str))
+        return
     run_timeline_tui(tl, console=console)
 
 
