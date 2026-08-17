@@ -74,3 +74,38 @@ def test_audit_entries_are_immutable():
         assert False, "should be frozen"
     except Exception:
         pass
+
+
+def test_chain_hash_detects_prompt_sha_and_ts_tamper():
+    """v0.5.0 fix-chain-hash-omits-prompt-sha — the chain hash now covers
+    prompt_sha256 (the regulator-critical field recording which LLM prompt
+    was fed) and ts, so mutating a link-op entry's prompt hash or timestamp
+    in a saved chain breaks verify_chain_integrity. Previously the digest
+    omitted both, so such tampering left the stored chain_hash valid — a
+    direct break of the tamper-evidence claim.
+    """
+    chain = AuditChain()
+    chain.record(op=OP_INGEST, input_sha256="a" * 64, output_sha256="b" * 64)
+    chain.record(
+        op=OP_LINK,
+        input_sha256="c" * 64,
+        llm_model_id="llama3.1:8b-instruct",
+        prompt_sha256="p" * 64,
+        output_sha256="d" * 64,
+    )
+    state = chain.to_state()
+    # sanity: the clean chain verifies
+    assert AuditChain.from_state(state).verify_chain_integrity() is True
+
+    # mutate the link op's prompt_sha256 in the saved state, reload, verify
+    tampered_prompt = [dict(row) for row in state]
+    tampered_prompt[1]["prompt_sha256"] = "x" * 64
+    restored = AuditChain.from_state(tampered_prompt)
+    assert restored.verify_chain_integrity() is False
+    broken = restored.first_broken_link()
+    assert broken is not None and broken[0] == 1 and broken[1].op == OP_LINK
+
+    # mutating the timestamp also breaks the chain
+    tampered_ts = [dict(row) for row in state]
+    tampered_ts[1]["ts"] = "2099-01-01T00:00:00+00:00"
+    assert AuditChain.from_state(tampered_ts).verify_chain_integrity() is False

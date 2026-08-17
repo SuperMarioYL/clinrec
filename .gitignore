@@ -16,6 +16,9 @@ venv/
 env/
 ENV/
 
+# uv lockfile (local-env lock; the manifest is pyproject.toml)
+uv.lock
+
 # Test / coverage
 .pytest_cache/
 .coverage

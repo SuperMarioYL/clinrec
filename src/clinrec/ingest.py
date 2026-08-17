@@ -14,6 +14,7 @@ import logging
 from pathlib import Path
 from typing import Iterable, Optional
 
+from .audit import sha256_text
 from .dedup import Deduplicator, content_sha256
 from .models import Record
 
@@ -146,11 +147,20 @@ def ingest_file(
     else:
         source_uri = path.name
 
+    # v0.5.0 — fix-ingest-audit-output-hash-mismatch: carry the raw extracted
+    # text hash (the actual NER input) and the byte-level file fingerprint on
+    # the Record so the ingest audit op can bind file bytes -> raw text ->
+    # NER input verbatim. content_sha256 stays the lossy normalized dedup key.
+    raw_text_sha = sha256_text(text)
+    file_sha = file_sha256(path)
+
     return Record(
         source_uri=source_uri,
         mime=mime,
         ocr_text=text,
         content_sha256=sha,
+        raw_text_sha256=raw_text_sha,
+        file_sha256=file_sha,
     )
 
 

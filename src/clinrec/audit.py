@@ -62,10 +62,19 @@ class AuditChain:
         the predecessor's ``chain_hash``, forming a linked hash chain. A
         regulator can call ``verify_chain_integrity()`` to detect reordering
         or silent insertion/modification of any past entry.
+
+        v0.5.0 — fix-chain-hash-omits-prompt-sha: the chain hash now also
+        incorporates ``prompt_sha256`` (the regulator-critical field
+        recording which LLM prompt was fed) and the entry ``ts``, so
+        mutating a link-op entry's prompt hash or timestamp now breaks the
+        chain. ``ts`` is materialized before hashing and passed to the
+        entry so the verifier recomputes the identical digest.
         """
         prev_hash = self._entries[-1].chain_hash if self._entries else ""
+        ts = datetime.now(timezone.utc)
         chain_hash = sha256_text(
-            f"{prev_hash}|{op}|{input_sha256}|{llm_model_id}|{output_sha256}"
+            f"{prev_hash}|{op}|{input_sha256}|{llm_model_id}"
+            f"|{prompt_sha256}|{output_sha256}|{ts.isoformat()}"
         )
         entry = AuditEntry(
             op=op,
@@ -74,6 +83,7 @@ class AuditChain:
             prompt_sha256=prompt_sha256,
             output_sha256=output_sha256,
             phi_egress=phi_egress,
+            ts=ts,
             prev_chain_hash=prev_hash,
             chain_hash=chain_hash,
         )
@@ -118,16 +128,35 @@ class AuditChain:
         Recomputes each entry's ``chain_hash`` from its predecessor's and the
         op fields; any reordering, insertion, or modification of a past entry
         breaks the chain at that point.
+
+        v0.5.0 — the recomputed digest now includes ``prompt_sha256`` and the
+        entry ``ts`` (mirroring ``record``), so prompt/timestamp tampering is
+        detected. State written under the v0.4.0 (or earlier) formula fails
+        this check; re-verify a freshly re-assembled chain after upgrading.
+        """
+        return self.first_broken_link() is None
+
+    def first_broken_link(self) -> tuple[int, AuditEntry] | None:
+        """Return the ``(index, entry)`` of the first broken chain link, or
+        ``None`` if the linked hash chain is unbroken.
+
+        A link is broken when ``prev_chain_hash`` does not match the
+        predecessor's ``chain_hash``, or when ``chain_hash`` does not match
+        the recomputed digest over ``(prev_hash | op | input_sha256 |
+        llm_model_id | prompt_sha256 | output_sha256 | ts)``. The CLI's
+        ``clinrec audit --verify`` delegates here so the digest formula lives
+        in one place (audit.py) and the command stays thin.
         """
         prev = ""
-        for e in self._entries:
+        for idx, e in enumerate(self._entries):
             expected = sha256_text(
-                f"{prev}|{e.op}|{e.input_sha256}|{e.llm_model_id}|{e.output_sha256}"
+                f"{prev}|{e.op}|{e.input_sha256}|{e.llm_model_id}"
+                f"|{e.prompt_sha256}|{e.output_sha256}|{e.ts.isoformat()}"
             )
             if e.prev_chain_hash != prev or e.chain_hash != expected:
-                return False
+                return idx, e
             prev = e.chain_hash
-        return True
+        return None
 
     def last_for_op(self, op: str) -> AuditEntry | None:
         for e in reversed(self._entries):

@@ -46,6 +46,11 @@ def _record(text: str, uri: str = "fax.txt") -> Record:
         ("Jan 15, 2024", date(2024, 1, 15)),
         ("15 January 2024", date(2024, 1, 15)),
         ("1/15/24", date(2024, 1, 15)),  # 2-digit year
+        # v0.5.0 fix-parse-date-2digit-year-pivot: 2-digit years <= pivot (30)
+        # map to 20xx, the rest to 19xx — a past DOB/encounter must not land
+        # in the future. Without the pivot these parsed to 2042 / 2099.
+        ("06/15/42", date(1942, 6, 15)),  # 2-digit year -> 19xx (past DOB)
+        ("01/15/99", date(1999, 1, 15)),  # 2-digit year -> 19xx (past encounter)
         ("not a date", None),
         ("32/13/9999", None),  # invalid month/day
         ("", None),
@@ -122,6 +127,21 @@ def test_assemble_marks_historical_as_resolved():
     stroke = next((ev for ev in tl.events if ev.normalized_code == "I63.9"), None)
     assert stroke is not None
     assert stroke.status == EventStatus.RESOLVED
+
+
+def test_assemble_no_history_of_diabetes_is_negated():
+    """v0.5.0 fix-event-status-historical-negated — an all-negated event is
+    NEGATED even when a historical cue precedes it. "No history of diabetes"
+    previously returned RESOLVED (the historical branch fired first for an
+    all-negated span), medically asserting the patient had-and-resolved a
+    condition the record states they never had.
+    """
+    r = _record("No history of diabetes.")
+    asm = TimelineAssembler(extractor=EntityExtractor(), linker=Linker(), audit=AuditChain())
+    tl = asm.assemble([r])
+    diabetes = next(ev for ev in tl.events if ev.normalized_code == "E11.9")
+    assert diabetes.status == EventStatus.NEGATED
+    assert all(s.is_negated for s in diabetes.evidence_spans)
 
 
 def test_assemble_populates_audit_chain():

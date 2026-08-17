@@ -42,6 +42,23 @@ _MONTHS = {
     "october": 10, "nov": 11, "november": 11, "dec": 12, "december": 12,
 }
 
+# v0.5.0 — fix-parse-date-2digit-year-pivot: a 2-digit year yy is mapped to
+# 20yy when yy < pivot (so 00-29 -> 2000-2029) and 19xx otherwise (30-99 ->
+# 1930-1999), mirroring standard medical-record pivot behavior. Without the
+# pivot every 2-digit year landed in 2000-2099, so a faxed DOB of "06/15/42"
+# parsed to 2042 (~18 years in the future) and sorted to the end of the
+# timeline, corrupting the regulator-facing chronology. Pivot 30 keeps the
+# existing "1/15/24" -> 2024 fixture green and fixes the 19xx DOB/encounter
+# cases common on faxed records.
+_TWO_DIGIT_YEAR_PIVOT = 30
+
+
+def _pivot_2digit_year(yr: int) -> int:
+    """Map a 2-digit year to a 4-digit year via the sliding pivot (20xx/19xx)."""
+    if yr < _TWO_DIGIT_YEAR_PIVOT:
+        return yr + 2000
+    return yr + 1900
+
 
 def parse_date(span: str) -> Optional[date]:
     """Parse the date formats used in faxed records → ``date`` or ``None``."""
@@ -50,7 +67,8 @@ def parse_date(span: str) -> Optional[date]:
     m = re.match(r"^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$", s)
     if m:
         mo, da, yr = int(m[1]), int(m[2]), int(m[3])
-        yr = yr + 2000 if yr < 100 else yr
+        if yr < 100:
+            yr = _pivot_2digit_year(yr)
         try:
             return date(yr, mo, da)
         except ValueError:
@@ -109,11 +127,19 @@ def _nearest_date(
 
 
 def _event_status(spans: list[EvidenceSpan], historical: bool) -> EventStatus:
-    """Resolve a merged event's status from its evidence spans."""
+    """Resolve a merged event's status from its evidence spans.
+
+    v0.5.0 — fix-event-status-historical-negated: the all-negated check
+    preempts the historical check, so an event whose every evidence span is
+    negated is NEGATED even when the window contains a historical cue.
+    Previously "No history of diabetes" returned RESOLVED (the historical
+    branch fired first for an all-negated span), medically asserting a
+    condition the record denies. Now an all-negated event is NEGATED first;
+    the historical -> RESOLVED logic only applies when at least one span is
+    not negated.
+    """
     if not spans:
         return EventStatus.UNKNOWN
-    if historical and not any(not s.is_negated for s in spans):
-        return EventStatus.RESOLVED
     if all(s.is_negated for s in spans):
         return EventStatus.NEGATED
     if historical:

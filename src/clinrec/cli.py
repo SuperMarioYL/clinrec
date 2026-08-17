@@ -149,11 +149,16 @@ def ingest(
         raise typer.Exit(code=1)
 
     for rec in records:
+        # v0.5.0 — fix-ingest-audit-output-hash-mismatch: bind the byte-level
+        # file fingerprint as input and the raw extracted-text hash (the actual
+        # NER input, rec.ocr_text) as output, so a regulator replaying the chain
+        # matches the ingest output to the NER input. Previously both were the
+        # lossy normalized dedup hash (content_sha256), which NER never consumed.
         audit.record(
             op="ingest",
-            input_sha256=rec.content_sha256,
+            input_sha256=rec.file_sha256,
             llm_model_id=_ingest_extractor_id(rec.mime),
-            output_sha256=rec.content_sha256,
+            output_sha256=rec.raw_text_sha256,
         )
 
     assembler = TimelineAssembler(extractor=extractor, linker=linker, audit=audit)
@@ -208,8 +213,43 @@ def audit(
         None, "--export", help="Write the regulator-reviewable audit log to this path (JSONL)."
     ),
     show: bool = typer.Option(False, "--show", help="Print the audit chain to stdout."),
+    verify: Optional[Path] = typer.Option(
+        None,
+        "--verify",
+        help="Independently verify a saved audit chain (state.json path); exit 0 (PASS) / 1 (FAIL + diagnostic).",
+    ),
 ) -> None:
-    """Inspect or export the regulator-reviewable audit chain."""
+    """Inspect, export, or independently verify the regulator-reviewable audit chain."""
+    # v0.5.0 — feature-audit-verify-cli: a regulator or CI workflow can
+    # independently attest a saved chain's integrity from the CLI without
+    # writing Python. Pairs with the chain-hash fix (the digest now covers
+    # prompt_sha256 + ts); delegates to AuditChain.first_broken_link so the
+    # digest formula lives in audit.py and the command stays thin.
+    if verify is not None:
+        if not verify.exists():
+            console.print(f"[red]state file not found:[/red] {verify}")
+            raise typer.Exit(code=1)
+        try:
+            data = json.loads(verify.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            console.print(f"[red]could not read state:[/red] {verify} ({exc})")
+            raise typer.Exit(code=1)
+        rows = data.get("audit_chain", []) if isinstance(data, dict) else []
+        chain = AuditChain.from_state(rows)
+        broken = chain.first_broken_link()
+        if broken is None:
+            console.print(
+                f"[green]PASS[/green] — audit chain integrity verified "
+                f"({len(chain)} entries)."
+            )
+            raise typer.Exit(code=0)
+        idx, entry = broken
+        console.print(
+            f"[red]FAIL[/red] — chain broken at index {idx} "
+            f"(op={entry.op}, audit_id={entry.audit_id})."
+        )
+        raise typer.Exit(code=1)
+
     state = State()
     if not state.exists():
         console.print("[yellow]No state found. Run [cyan]clinrec ingest <folder>[/cyan] first.[/yellow]")

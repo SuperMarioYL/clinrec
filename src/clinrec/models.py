@@ -70,6 +70,14 @@ class Record(BaseModel):
     mime: str
     ocr_text: str
     content_sha256: str
+    # v0.5.0 — fix-ingest-audit-output-hash-mismatch: bind the byte-level file
+    # fingerprint and the raw extracted-text hash onto the Record so the ingest
+    # audit op records them (not the lossy normalized dedup hash), making the
+    # ingest -> NER handoff replayable by a regulator. content_sha256 stays
+    # the whitespace-collapsed/lowercased dedup key; raw_text_sha256 is
+    # sha256(ocr_text) (the actual NER input), file_sha256 is the byte hash.
+    raw_text_sha256: str = ""
+    file_sha256: str = ""
     ingested_at: datetime = Field(default_factory=_utcnow)
 
 
