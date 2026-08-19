@@ -31,7 +31,7 @@ def _write_sample(folder: Path) -> None:
 def test_cli_version():
     res = runner.invoke(app, ["version"])
     assert res.exit_code == 0
-    assert "0.5.0" in res.stdout
+    assert "0.6.0" in res.stdout
 
 
 def test_cli_init_writes_config(tmp_path, monkeypatch):
@@ -236,3 +236,72 @@ def test_cli_audit_verify_missing_file_errors(tmp_path, monkeypatch):
     res = runner.invoke(app, ["audit", "--verify", str(tmp_path / "nope.json")])
     assert res.exit_code == 1
     assert "not found" in res.stdout
+
+
+def test_cli_ingest_rtf_records_striprtf_extractor_and_replayable_sha(tmp_path, monkeypatch):
+    """v0.6.0 fix-rtf-ingest-audit-wrong-extractor-id — ingesting a .rtf
+    records the striprtf extractor id (not the catch-all 'text'), and the
+    ingest output_sha256 matches a regulator replay that re-runs striprtf on
+    the raw RTF markup — NOT a path.read_text replay of the raw markup. The
+    v0.3.0 RTF fix added _read_rtf without updating the mime->extractor
+    mapping, so a regulator replaying with path.read_text could not match the
+    recorded output_sha256.
+    """
+    monkeypatch.chdir(tmp_path)
+    sample = tmp_path / "sample-records"
+    sample.mkdir()
+    rtf_path = sample / "note.rtf"
+    rtf_body = r"{\rtf1\ansi\deff0 {\fonttbl {\f0 Helvetica;}} \f0 Patient has diabetes. Started metformin 500 mg.}"
+    rtf_path.write_text(rtf_body, encoding="utf-8")
+    res = runner.invoke(app, ["ingest", str(sample)])
+    assert res.exit_code == 0, res.stdout
+
+    payload = json.loads((tmp_path / ".clinrec" / "state.json").read_text())
+    ingest_entries = [e for e in payload["audit_chain"] if e["op"] == "ingest"]
+    assert ingest_entries, "no ingest audit entry"
+
+    # the audit records the extractor that actually produced the text
+    assert ingest_entries[0]["llm_model_id"] == "striprtf"
+
+    from clinrec.audit import sha256_text
+    from striprtf.striprtf import rtf_to_text
+
+    cleaned = rtf_to_text(rtf_body)
+    rec = payload["records"][0]
+    # the recorded output is the striprtf-cleaned text (the actual NER input)
+    assert rec["ocr_text"] == cleaned
+    # a regulator replaying via striprtf reproduces the recorded digest
+    assert ingest_entries[0]["output_sha256"] == sha256_text(cleaned)
+    # a path.read_text replay (raw RTF markup) does NOT match
+    assert ingest_entries[0]["output_sha256"] != sha256_text(rtf_body)
+
+
+def test_cli_audit_verify_fails_on_phi_egress_tampered(tmp_path, monkeypatch):
+    """v0.6.0 fix-audit-verify-omits-phi-egress-invariant — the linked
+    chain hash deliberately excludes phi_egress, so first_broken_link()
+    alone could not detect a flipped phi_egress=True and --verify printed
+    PASS / exit 0 for a chain recording a PHI-egress event, hiding the
+    primitive's headline compliance guarantee. --verify now also calls
+    verify_invariant(), so a tampered state.json with phi_egress flipped
+    True FAILS (non-zero) with the invariant diagnostic.
+    """
+    monkeypatch.chdir(tmp_path)
+    sample = tmp_path / "sample-records"
+    sample.mkdir()
+    _write_sample(sample)
+    runner.invoke(app, ["ingest", str(sample)])
+    state = tmp_path / ".clinrec" / "state.json"
+    payload = json.loads(state.read_text())
+    # flip one entry's phi_egress to True (the chain hash does NOT cover this
+    # field, so first_broken_link() alone still returns None / PASS)
+    link_idx = next(
+        i for i, e in enumerate(payload["audit_chain"]) if e["op"] == "link"
+    )
+    payload["audit_chain"][link_idx]["phi_egress"] = True
+    state.write_text(json.dumps(payload), encoding="utf-8")
+
+    res = runner.invoke(app, ["audit", "--verify", str(state)])
+    assert res.exit_code == 1, res.stdout
+    assert "FAIL" in res.stdout
+    assert "phi_egress" in res.stdout
+    assert "invariant" in res.stdout

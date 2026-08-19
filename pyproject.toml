@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "clinrec"
-version = "0.5.0"
+version = "0.6.0"
 description = "On-prem primitive turning faxed and scanned PHI into a regulator-reviewable clinical timeline."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -60,7 +60,7 @@ Issues = "https://github.com/SuperMarioYL/clinrec/issues"
 packages = ["src/clinrec"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/clinrec", "tests", "sample-records", "docs", "assets", "README.md", "README.zh-CN.md", "LICENSE", "VERSION"]
+include = ["src/clinrec", "tests", "sample-records", "docs", "assets", "README.md", "README.zh-CN.md", "CHANGELOG.md", "LICENSE", "VERSION"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

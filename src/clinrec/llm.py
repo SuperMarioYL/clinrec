@@ -304,13 +304,23 @@ class Linker:
             )
         except Exception as exc:  # noqa: BLE001 — model missing / daemon died
             log.warning("Ollama call failed (%s); falling back to rule-based", exc)
+            # v0.6.0 — fix-llm-link-error-output-sha-non-replayable: record the
+            # sha of the ACTUAL returned rule-based output (matching the
+            # never-available path at the _sha(f"{rb_code}|{rb_sys.value}|{rb_conf}")
+            # formula), so a regulator replaying this link op reproduces the
+            # recorded digest. Previously this recorded _sha(f"err:{exc}") while
+            # returning normalized_code=rb_code, so a replay hashing the
+            # rule-based output got a non-matching digest — a non-replayable
+            # link breaking the "regulator can replay every step" guarantee.
+            # The non-empty prompt_sha256 still signals an LLM was attempted
+            # and the warning log above records the error, so no info is lost.
             return LinkResult(
                 normalized_code=rb_code,
                 code_sys=rb_sys,
                 confidence=rb_conf,
                 llm_model_id="rule-based",
                 prompt_sha256=prompt_sha,
-                output_sha256=_sha(f"err:{exc}"),
+                output_sha256=_sha(f"{rb_code}|{rb_sys.value}|{rb_conf}"),
             )
 
         raw = (resp.get("message", {}).get("content", "") or "").strip()

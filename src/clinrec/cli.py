@@ -77,14 +77,23 @@ def _ingest_extractor_id(mime: str) -> str:
     """Map a record mime to the on-prem extractor that produced its text.
 
     Mirrors ingest.extract_text: pdfplumber for PDF, tesseract OCR for
-    images, and path.read_text for everything else (.txt/.md/.rtf). The
-    audit docstring records the model id that produced the record, so a
-    false 'pdfplumber' id for a .txt record would mislead a regulator.
+    images, striprtf for .rtf, and path.read_text for everything else
+    (.txt/.md). The audit docstring records the model id that produced the
+    record, so a false id (e.g. 'text' for an .rtf whose output_sha256 is the
+    sha of the striprtf-cleaned text) would mislead a regulator replaying it.
+
+    v0.6.0 — fix-rtf-ingest-audit-wrong-extractor-id: the v0.3.0 RTF fix
+    added _read_rtf (striprtf) but left .rtf falling through to 'text', so
+    the audit recorded the wrong extractor and a regulator replaying with
+    path.read_text on raw RTF markup could not match the recorded
+    output_sha256. .rtf now maps to 'striprtf' to match ingest.extract_text.
     """
     if mime.startswith("image"):
         return "ocr+tesseract"
     if mime == "application/pdf":
         return "pdfplumber"
+    if mime == "application/rtf":
+        return "striprtf"
     return "text"
 
 
@@ -225,6 +234,14 @@ def audit(
     # writing Python. Pairs with the chain-hash fix (the digest now covers
     # prompt_sha256 + ts); delegates to AuditChain.first_broken_link so the
     # digest formula lives in audit.py and the command stays thin.
+    #
+    # v0.6.0 — fix-audit-verify-omits-phi-egress-invariant: the linked chain
+    # hash deliberately excludes phi_egress, so first_broken_link() alone
+    # could not detect a flipped phi_egress=True and --verify printed PASS
+    # exit 0 for a chain that records a PHI-egress event — hiding the
+    # primitive's headline compliance guarantee. The --verify path now also
+    # calls verify_invariant(), mirroring the --export path's dual
+    # (chain + invariant) attestation.
     if verify is not None:
         if not verify.exists():
             console.print(f"[red]state file not found:[/red] {verify}")
@@ -237,18 +254,26 @@ def audit(
         rows = data.get("audit_chain", []) if isinstance(data, dict) else []
         chain = AuditChain.from_state(rows)
         broken = chain.first_broken_link()
-        if broken is None:
+        if broken is not None:
+            idx, entry = broken
             console.print(
-                f"[green]PASS[/green] — audit chain integrity verified "
-                f"({len(chain)} entries)."
+                f"[red]FAIL[/red] — chain broken at index {idx} "
+                f"(op={entry.op}, audit_id={entry.audit_id})."
             )
-            raise typer.Exit(code=0)
-        idx, entry = broken
+            raise typer.Exit(code=1)
+        if not chain.verify_invariant():
+            egress = next(e for e in chain if e.phi_egress)
+            console.print(
+                f"[red]FAIL[/red] — phi_egress invariant violated at "
+                f"op={egress.op}, audit_id={egress.audit_id} "
+                f"(phi_egress=True). PHI-egress event recorded in the chain."
+            )
+            raise typer.Exit(code=1)
         console.print(
-            f"[red]FAIL[/red] — chain broken at index {idx} "
-            f"(op={entry.op}, audit_id={entry.audit_id})."
+            f"[green]PASS[/green] — audit chain integrity verified "
+            f"({len(chain)} entries); phi_egress invariant holds."
         )
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=0)
 
     state = State()
     if not state.exists():

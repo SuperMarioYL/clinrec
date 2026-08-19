@@ -1,6 +1,7 @@
 """m1: on-prem LLM linker (rule-based fallback + ollama path)."""
 from __future__ import annotations
 
+import hashlib
 from unittest.mock import patch
 
 import pytest
@@ -115,3 +116,37 @@ def test_linker_handles_daemon_connection_error():
     # degrades to rule-based, audit still records the attempt
     assert res.normalized_code == "E11.9"
     assert res.llm_model_id == "rule-based"
+
+
+def test_linker_error_records_replayable_rule_based_sha():
+    """v0.6.0 fix-llm-link-error-output-sha-non-replayable — when chat()
+    fails mid-batch (cached _available=True keeps every subsequent link on
+    the failing LLM path), the recorded output_sha256 must match a
+    regulator replay that re-derives the rule-based output via the
+    never-available path formula (sha of "{rb_code}|{rb_sys.value}|{rb_conf}"),
+    not _sha(f"err:{exc}"). Previously the link op recorded the non-replayable
+    err:{exc} digest while returning normalized_code=rb_code, so a regulator
+    replaying the chain could not reproduce the recorded digest — a
+    non-replayable link breaking the "regulator can replay every step"
+    guarantee.
+    """
+    lk = Linker()
+    lk._available = True
+
+    def boom(*a, **k):
+        raise ConnectionError("daemon died")
+
+    lk._client = type("C", (), {"chat": boom})()
+    res = lk.link("diabetes", EntityType.CONDITION)
+    assert res.normalized_code == "E11.9"
+    assert res.llm_model_id == "rule-based"
+    assert res.prompt_sha256  # an LLM attempt was made (prompt hashed)
+
+    # the recorded digest reproduces from the actual returned rule-based output
+    rb_code, rb_sys, rb_conf = rule_based_code("diabetes", EntityType.CONDITION)
+    expected = hashlib.sha256(
+        f"{rb_code}|{rb_sys.value}|{rb_conf}".encode("utf-8")
+    ).hexdigest()
+    assert res.output_sha256 == expected
+    # and must NOT be the old non-replayable err:{exc} digest
+    assert res.output_sha256 != hashlib.sha256(b"err:daemon died").hexdigest()
