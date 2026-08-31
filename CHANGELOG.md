@@ -5,6 +5,13 @@ All notable changes to ClinRec are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-08-31
+
+### Fixed
+
+- **fix-ner-audit-input-hash-uses-dedup-key** (`src/clinrec/timeline.py`): the `ner` audit op recorded `input_sha256=rec.content_sha256` (the whitespace-collapsed/lowercased dedup key from `dedup.py`), but the NER engine consumes `rec.ocr_text` whose sha-256 is `rec.raw_text_sha256`. For any record whose OCR text carries uppercase or extra whitespace (the common faxed-record case) the two hashes differ, so a regulator replaying the ner op hashed the actual NER input and got a non-matching digest — a non-replayable ner op breaking the "regulator can replay every step" guarantee. The v0.5.0 ingest fix made the ingest op bind the raw-text hash as its output; the ner op (which actually consumes that text) was never updated, so the ingest→ner chain link was broken. The ner op now records `input_sha256=rec.raw_text_sha256` (in both `assemble` and `resolve_record`), making `ingest.output_sha256 == ner.input_sha256 == raw_text_sha256` and completing the v0.5.0 chain-binding contract.
+- **fix-link-audit-date-provider-output-sha-equals-input** (`src/clinrec/llm.py`): the `Linker.link` DATE/PROVIDER branch recorded `output_sha256=_sha(span)`, which equals the link op's `input_sha256` (`sha256_text(r.text_span)` in `timeline.py`, `span == r.text_span`) — making the link op indistinguishable from a no-op in the audit chain for every date and provider entity — and diverged from the rule-based output formula `_sha(f"{code}|{sys}|{conf}")` used by the never-available path and the v0.6.0 except path, so a regulator replaying via that formula got a non-matching digest (same non-replayable-link defect class as the v0.6.0 `fix-llm-link-error-output-sha-non-replayable`, in a branch that fix missed). The DATE/PROVIDER branch now records `output_sha256=_sha(f"{normalized_code}|{code_sys.value}|{confidence}")`, matching the rule-based output formula, representing the link op's actual normalization output, and differing from the input hash.
+
 ## [0.6.0] - 2026-08-20
 
 ### Fixed

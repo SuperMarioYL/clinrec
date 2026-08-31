@@ -150,3 +150,31 @@ def test_linker_error_records_replayable_rule_based_sha():
     assert res.output_sha256 == expected
     # and must NOT be the old non-replayable err:{exc} digest
     assert res.output_sha256 != hashlib.sha256(b"err:daemon died").hexdigest()
+
+
+def test_linker_date_provider_output_sha_matches_rule_based_formula():
+    """v0.7.0 fix-link-audit-date-provider-output-sha-equals-input — for a
+    DATE/PROVIDER entity the link op's output_sha256 must follow the SAME
+    rule-based output formula (_sha(f"{code}|{sys}|{conf}")) as the
+    never-available path and the v0.6.0 except path, so a regulator replaying
+    via that formula reproduces the recorded digest. Previously the
+    DATE/PROVIDER branch recorded _sha(span), which (a) equals the link op's
+    input_sha256 (sha256_text(r.text_span) in timeline.py, span==r.text_span),
+    making the link op indistinguishable from a no-op, and (b) diverged from
+    the rule-based formula, so a regulator replaying via that formula got a
+    non-matching digest — the same non-replayable-link defect class as the
+    v0.6.0 fix-llm-link-error-output-sha-non-replayable.
+    """
+    lk = Linker()
+    span = "01/15/2024"
+    res = lk.link(span, EntityType.DATE)
+    assert res.normalized_code == span.strip()
+    assert res.code_sys == CodeSystem.UNKNOWN
+    assert res.confidence == 0.0
+
+    expected = hashlib.sha256(
+        f"{res.normalized_code}|{res.code_sys.value}|{res.confidence}".encode("utf-8")
+    ).hexdigest()
+    assert res.output_sha256 == expected
+    # the link op's output must NOT equal the input span hash (no-op)
+    assert res.output_sha256 != hashlib.sha256(span.encode("utf-8")).hexdigest()

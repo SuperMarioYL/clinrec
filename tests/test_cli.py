@@ -31,7 +31,7 @@ def _write_sample(folder: Path) -> None:
 def test_cli_version():
     res = runner.invoke(app, ["version"])
     assert res.exit_code == 0
-    assert "0.6.0" in res.stdout
+    assert "0.7.0" in res.stdout
 
 
 def test_cli_init_writes_config(tmp_path, monkeypatch):
@@ -185,6 +185,48 @@ def test_cli_ingest_audit_binds_file_bytes_and_raw_text(tmp_path, monkeypatch):
     assert ingest_entries[0]["output_sha256"] != rec["content_sha256"]
     # input is the byte-level file fingerprint, binding the original fax bytes
     assert ingest_entries[0]["input_sha256"] == file_sha256(fax)
+
+
+def test_cli_ingest_ner_audit_binds_raw_text_input(tmp_path, monkeypatch):
+    """v0.7.0 fix-ner-audit-input-hash-uses-dedup-key — the ner audit op's
+    input_sha256 must equal sha256(rec.ocr_text) (the actual NER input, exposed
+    on the Record as raw_text_sha256), NOT rec.content_sha256 (the lossy
+    whitespace-collapsed/lowercased dedup key). The v0.5.0 ingest fix made the
+    ingest op's output_sha256 bind the raw text; the ner op (which actually
+    consumes rec.ocr_text) must bind the SAME raw-text hash as its input, so
+    the ingest->ner chain link is verifiably intact (ingest.output ==
+    ner.input == raw_text_sha256). Previously the ner op recorded the dedup
+    key, so a regulator replaying the ner op hashed the actual NER input and
+    got a non-matching digest.
+    """
+    monkeypatch.chdir(tmp_path)
+    sample = tmp_path / "sample-records"
+    sample.mkdir()
+    fax = sample / "fax1.txt"
+    # uppercase + double-space so the normalized dedup key differs from the raw
+    # text hash (exposes the bug; a pure-lowercase single-space record would mask it)
+    fax.write_text(
+        "Patient seen 01/15/2024.  Dr. Jane Smith noted Diabetes.  Started metformin 500 mg.",
+        encoding="utf-8",
+    )
+    res = runner.invoke(app, ["ingest", str(sample)])
+    assert res.exit_code == 0, res.stdout
+
+    payload = json.loads((tmp_path / ".clinrec" / "state.json").read_text())
+    ner_entries = [e for e in payload["audit_chain"] if e["op"] == "ner"]
+    assert ner_entries, "no ner audit entry"
+    ingest_entries = [e for e in payload["audit_chain"] if e["op"] == "ingest"]
+    assert ingest_entries, "no ingest audit entry"
+    rec = payload["records"][0]
+
+    from clinrec.audit import sha256_text
+
+    # the ner op binds the actual NER input (raw extracted text), not the dedup key
+    assert ner_entries[0]["input_sha256"] == sha256_text(rec["ocr_text"])
+    assert ner_entries[0]["input_sha256"] == rec["raw_text_sha256"]
+    assert ner_entries[0]["input_sha256"] != rec["content_sha256"]
+    # the ingest->ner chain link is intact: ingest output == ner input (raw text)
+    assert ingest_entries[0]["output_sha256"] == ner_entries[0]["input_sha256"]
 
 
 def test_cli_audit_verify_pass_on_clean_chain(tmp_path, monkeypatch):

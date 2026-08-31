@@ -165,9 +165,13 @@ class TimelineAssembler:
     def resolve_record(self, record: Record) -> list[Entity]:
         """Run NER + on-prem linker on one record → coded ``Entity`` list."""
         raw = self.extractor.extract(record.ocr_text, record.record_id)
+        # v0.7.0 — fix-ner-audit-input-hash-uses-dedup-key: bind the actual
+        # NER input (record.ocr_text, hashed as record.raw_text_sha256), not
+        # the lossy normalized dedup key (record.content_sha256). Mirrors the
+        # assemble path; see the comment there for the chain-link rationale.
         self.audit.record(
             op="ner",
-            input_sha256=record.content_sha256,
+            input_sha256=record.raw_text_sha256,
             llm_model_id="medspacy" if self.extractor.uses_medspacy else "regex",
             output_sha256=sha256_text("|".join(r.text_span for r in raw)),
         )
@@ -214,9 +218,19 @@ class TimelineAssembler:
             # Record the NER op so a regulator can replay which engine
             # (medspacy vs regex) produced each record's spans + their
             # input/output hashes — mirrors resolve_record's ner call.
+            #
+            # v0.7.0 — fix-ner-audit-input-hash-uses-dedup-key: bind the
+            # actual NER input (rec.ocr_text, hashed as rec.raw_text_sha256)
+            # as the ner op's input, not rec.content_sha256 (the lossy
+            # whitespace-collapsed/lowercased dedup key from dedup.py). The
+            # NER engine consumes rec.ocr_text (the extract call above), so
+            # the recorded input must be its hash; this also keeps the
+            # ingest->ner chain link intact (ingest.output_sha256 ==
+            # ner.input_sha256 == raw_text_sha256), matching the v0.5.0
+            # ingest fix's chain-binding contract.
             self.audit.record(
                 op="ner",
-                input_sha256=rec.content_sha256,
+                input_sha256=rec.raw_text_sha256,
                 llm_model_id="medspacy" if self.extractor.uses_medspacy else "regex",
                 output_sha256=sha256_text("|".join(r.text_span for r in raw)),
             )

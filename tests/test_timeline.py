@@ -188,3 +188,26 @@ def test_resolve_record_returns_coded_entities():
     assert any(e.normalized_code == "E11.9" for e in ents)
     assert any(e.normalized_code == "6809" for e in ents)
     assert all(e.llm_model_id for e in ents)
+
+
+def test_assemble_date_link_op_output_differs_from_input():
+    """v0.7.0 fix-link-audit-date-provider-output-sha-equals-input — the
+    DATE/PROVIDER link audit op's output_sha256 must NOT equal its
+    input_sha256. Previously the DATE/PROVIDER link branch recorded
+    output_sha256=_sha(span) which equals the link op's input_sha256
+    (sha256_text(r.text_span), span==r.text_span), making the link op a
+    no-op in the audit chain and diverging from the rule-based output
+    formula. After the fix the output follows _sha(code|sys|conf) and
+    differs from the input.
+    """
+    date_span = "01/15/2024"
+    r = _record(f"{date_span}. Diabetes noted. Metformin started.")
+    audit = AuditChain()
+    asm = TimelineAssembler(extractor=EntityExtractor(), linker=Linker(), audit=audit)
+    tl = asm.assemble([r])
+    date_link = next(
+        (e for e in tl.audit_chain if e.op == OP_LINK and e.input_sha256 == _sha(date_span)),
+        None,
+    )
+    assert date_link is not None, "no link audit op for the DATE span"
+    assert date_link.input_sha256 != date_link.output_sha256

@@ -258,13 +258,27 @@ class Linker:
 
         if entity_type in (EntityType.DATE, EntityType.PROVIDER):
             # no code system applies; record the raw span as its own "code"
+            #
+            # v0.7.0 — fix-link-audit-date-provider-output-sha-equals-input:
+            # the link op's output_sha256 follows the SAME rule-based output
+            # formula (_sha(f"{code}|{sys}|{conf}")) as the never-available
+            # path (below) and the v0.6.0 except path, so a regulator
+            # replaying via that formula reproduces the recorded digest.
+            # Previously this recorded _sha(span), which equals the link
+            # op's input_sha256 (sha256_text(r.text_span) in timeline.py,
+            # span==r.text_span) — making the link op indistinguishable from
+            # a no-op — and diverged from the rule-based formula, so a
+            # regulator replaying via that formula got a non-matching digest.
+            normalized_code = span.strip()
+            code_sys = CodeSystem.UNKNOWN
+            confidence = 0.0
             return LinkResult(
-                normalized_code=span.strip(),
-                code_sys=CodeSystem.UNKNOWN,
-                confidence=0.0,
+                normalized_code=normalized_code,
+                code_sys=code_sys,
+                confidence=confidence,
                 llm_model_id="rule-based",
                 prompt_sha256="",
-                output_sha256=_sha(span),
+                output_sha256=_sha(f"{normalized_code}|{code_sys.value}|{confidence}"),
             )
 
         if not self.is_available():
