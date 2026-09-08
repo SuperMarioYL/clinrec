@@ -1,0 +1,10 @@
+{
+  "version": "0.7.0",
+  "fixture": "Three constructed TXT notes, including a normalized duplicate. Real ingest, available NER path, rule-based fallback, timeline and audit-chain check. No clinical benchmark or OCR/model-service acceptance.",
+  "steps": [
+    {
+      "command": "python examples/presentation_demo.py",
+      "output": "{\n  \"records\": 2,\n  \"duplicates_skipped\": 1,\n  \"ner_engine\": \"regex\",\n  \"model_reachable\": false,\n  \"events\": 3,\n  \"linker_modes\": [\n    \"rule-based\"\n  ],\n  \"audit_entries\": 13,\n  \"chain_integrity\": true\n}\n"
+    }
+  ]
+}

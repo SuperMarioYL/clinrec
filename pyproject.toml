@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "clinrec"
 version = "0.7.0"
-description = "On-prem primitive turning faxed and scanned PHI into a regulator-reviewable clinical timeline."
+description = "Build reviewable clinical timelines from local records with text deduplication, entity linking, evidence spans and per-operation hash records."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"

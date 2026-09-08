@@ -1,0 +1,98 @@
+{
+  "name": "ClinRec",
+  "tagline": "Organize records into a source-linked timeline.",
+  "architecture": {
+    "title": "Records, evidence and processing history",
+    "nodes": [
+      {
+        "title": "Local records",
+        "detail": "Text or supported documents"
+      },
+      {
+        "title": "Ingest + dedup",
+        "detail": "Extraction and text hashes"
+      },
+      {
+        "title": "Entity extraction",
+        "detail": "medspaCy or regex"
+      },
+      {
+        "title": "Link + timeline",
+        "detail": "Codes, dates and evidence"
+      },
+      {
+        "title": "Audit + state",
+        "detail": "Hashes and JSON persistence"
+      }
+    ],
+    "edges": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        3
+      ],
+      [
+        1,
+        4
+      ],
+      [
+        3,
+        4
+      ]
+    ]
+  },
+  "process": {
+    "title": "Inspect a fictional local example",
+    "steps": [
+      {
+        "title": "Read three TXT files",
+        "detail": "Includes one normalized duplicate"
+      },
+      {
+        "title": "Keep two records",
+        "detail": "Original text retained"
+      },
+      {
+        "title": "Assemble locally",
+        "detail": "Rule linker; three events"
+      },
+      {
+        "title": "Check the chain",
+        "detail": "Thirteen audit entries"
+      }
+    ],
+    "result": "Regex-path example; no model or clinical validation."
+  },
+  "integrations": {
+    "title": "Document inputs and review outputs",
+    "items": [
+      {
+        "title": "Text / RTF",
+        "detail": "Local extraction"
+      },
+      {
+        "title": "PDF text",
+        "detail": "Text-layer reading"
+      },
+      {
+        "title": "Images",
+        "detail": "Tesseract OCR"
+      },
+      {
+        "title": "Ollama / rules",
+        "detail": "Configured linking routes"
+      },
+      {
+        "title": "JSON / audit",
+        "detail": "Reviewable output"
+      }
+    ]
+  }
+}

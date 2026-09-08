@@ -1,89 +1,229 @@
 {
-  "schema": 1,
-  "name": "clinrec",
+  "schema": 3,
+  "name": "ClinRec",
   "github": "https://github.com/SuperMarioYL/clinrec",
   "host": "clinrec.lei6393.com",
-  "lang": { "primary": "en", "toggle": true },
-  "accent": ["#8b7cf6", "#4d9bff", "#34e5d0"],
+  "palette": "auto",
+  "lang": {
+    "primary": "en",
+    "toggle": true
+  },
+  "meta": {
+    "visual_profile": "neon-particle",
+    "demo_source": "docs/demo-results.json",
+    "implementation_version": "0.7.0"
+  },
   "hero": {
     "eyebrow": {
-      "zh": "病历不出院 · 可审查时间线 · 逐步审计",
-      "en": "PHI stays on-prem · Reviewable timeline · Audit-stamped"
+      "zh": "记录处理 · 来源证据",
+      "en": "RECORD PROCESSING · SOURCE EVIDENCE"
     },
     "headline": {
-      "zh": "把传真病历变成可审查的临床时间线",
-      "en": "Turn faxed records into a reviewable clinical timeline"
+      "zh": "时间线里的事件，\n回到原文核对。",
+      "en": "Review the timeline.\nReturn to the source."
     },
     "sub": {
-      "zh": "在一台机器上入库传真与扫描病历,解析成编码临床事件,组装去重时间线 —— 病历不出本机,每一步都带审计戳。",
-      "en": "Ingest faxed and scanned records on one host, resolve them into coded clinical events, and assemble a de-duplicated timeline — PHI never leaves, every step audit-stamped."
+      "zh": "ClinRec 将本地记录经过文本去重、实体抽取和编码关联整理成时间线，并保留原文位置及各处理步骤的哈希记录。",
+      "en": "ClinRec organizes local records into timelines through text deduplication, entity extraction and coding, retaining evidence spans and hashes for processing steps."
     },
-    "command": "clinrec ingest ./sample-records",
-    "cta": { "zh": "立即开始", "en": "Get started" },
-    "ctaGithub": { "zh": "在 GitHub 查看", "en": "View on GitHub" },
-    "scroll": { "zh": "向下滚动", "en": "Scroll to explore" }
+    "href": "#quickstart",
+    "cta": {
+      "zh": "运行示例",
+      "en": "Run the example"
+    },
+    "ctaGithub": {
+      "zh": "查看源码",
+      "en": "View source"
+    }
+  },
+  "scene": {
+    "kind": "neon-graph",
+    "fallback": "/assets/presentation/scene-dark.svg",
+    "fallbackLight": "/assets/presentation/scene-light.svg",
+    "caption": {
+      "zh": "把记录整理成能回查来源的时间线",
+      "en": "Organize records into a source-linked timeline."
+    }
   },
   "advantages": [
     {
-      "title": { "zh": "病历不出院", "en": "PHI never leaves the box" },
-      "body": {
-        "zh": "传真与扫描的病历在一台机器上就地处理,零云调用 —— 不再让病历出站,承担 HIPAA 违规风险。",
-        "en": "Fax and scanned records are processed on a single host with zero cloud calls — no more HIPAA breach from records leaving the site."
+      "title": {
+        "zh": "减少重复文本",
+        "en": "Reduce duplicate text"
       },
-      "chips": ["› Zero cloud calls", "› Single host", "› HIPAA-friendly"]
+      "body": {
+        "zh": "按规范化文本哈希识别相同内容，保留来源文件信息。",
+        "en": "Normalized-text hashes identify equivalent content while retaining source information."
+      }
     },
     {
-      "title": { "zh": "杂乱病历,解析成编码", "en": "Messy records, resolved to codes" },
-      "body": {
-        "zh": "重复传真、自由文本就诊、残缺结构化字段 —— 全部解析成病情、用药、操作、日期、机构的编码临床事件,而不是一堆互不相干的文本片段。",
-        "en": "Repeat faxes, free-text encounters, partial structured fields — all resolved into coded clinical events for conditions, meds, procedures, dates, and providers, not disjoint text fragments."
+      "title": {
+        "zh": "保留事件证据",
+        "en": "Keep event evidence"
       },
-      "chips": ["› Conditions to codes", "› Meds to codes", "› Procedures to codes"]
+      "body": {
+        "zh": "时间线事件可回到对应原文 span，便于人工复核。",
+        "en": "Timeline events retain source spans for human review."
+      }
     },
     {
-      "title": { "zh": "去重时间线", "en": "A de-duplicated timeline" },
-      "body": {
-        "zh": "同一份就诊的重复传真被识别并合并,汇成一条按日期排列、带证据片段的临床时间线 —— 而不是同一事件出现三次。",
-        "en": "Repeat faxes of the same encounter are recognized and merged into one dated, evidence-linked timeline — not the same event three times."
+      "title": {
+        "zh": "记录处理路径",
+        "en": "Record the processing route"
       },
-      "chips": ["› No duplicate events", "› Dated timeline", "› Evidence-linked"]
-    },
-    {
-      "title": { "zh": "逐步可审计", "en": "Audit-ready, step by step" },
       "body": {
-        "zh": "每一次抽取都记一条审计记录,每条记录与前一条密码学链接 —— 审查方仅凭本机产物就能复现整条链,任何篡改都会在断链处暴露。导出审计日志,直接交给合规。",
-        "en": "Every extraction step is recorded as an audit entry, each cryptographically linked to its predecessor — a regulator can replay the chain from local artifacts alone, and any tampering breaks the chain. Export the audit log straight to compliance."
-      },
-      "chips": ["› Every step logged", "› Tamper-evident chain", "› Exportable log"]
-    },
-    {
-      "title": { "zh": "质量可证伪", "en": "Quality you can falsify" },
-      "body": {
-        "zh": "内置质量检查在去标识样本上报告精确率与召回率,对比基线 —— 达不到这条线,这个原语就不该存在。不是黑盒。",
-        "en": "A built-in quality check reports precision and recall on a de-identified sample against a baseline — miss the bar and the primitive shouldn't exist. Not a black box."
-      },
-      "chips": ["› Measurable precision", "› Measurable recall", "› De-identified sample"]
+        "zh": "哈希与模型/规则标识记录每步处理所用路径。",
+        "en": "Hashes and model/rule identifiers record the route used by each operation."
+      }
     }
   ],
-  "scene": {
-    "kind": "hub-nodes",
-    "nodes": ["Faxed records", "Scanned files", "Clinical entities", "Timeline"]
-  },
-  "cta": {
-    "headline": {
-      "zh": "把传真病历变成可审查的时间线",
-      "en": "Turn faxed records into a reviewable timeline"
+  "story": {
+    "intro": {
+      "title": {
+        "zh": "把记录整理成能回查来源的时间线",
+        "en": "Organize records into a source-linked timeline."
+      },
+      "body": {
+        "zh": "同一记录可能重复出现，不同日期的事件又分散在多份文件中。先消除相同文本的重复，再把事件与证据放在一起，可以减少复核时来回查找文件的负担。软件抽取结果仍需专业复核，不能把一份处理日志当成临床正确性或合规认证。",
+        "en": "Repeated records and events scattered across dated documents make review laborious. Deduplicating equivalent text and keeping events alongside evidence can reduce the search for source material. Extracted results still require professional review; a processing log is not clinical validation or compliance certification."
+      }
     },
-    "sub": {
-      "zh": "开源原语免费;ClinRec Pro 提供本地化部署托管与监管级审计包。",
-      "en": "The OSS primitive is free; ClinRec Pro adds managed on-prem deployment and a regulator-grade audit pack."
-    },
-    "button": { "zh": "在 GitHub 开始", "en": "Get started on GitHub" }
+    "sections": [
+      {
+        "title": {
+          "zh": "从输入到结果",
+          "en": "From input to result"
+        },
+        "body": {
+          "zh": "脚本在临时目录创建三份虚构 TXT，其中一份仅大小写和空白不同。实际保留 2 条记录、跳过 1 条重复，使用规则 linker 得到 3 个事件和 13 条完整哈希链记录。本次运行的 NER 是 regex 回退；安装 medspaCy 后 ner_engine 字段会体现相应路径。",
+          "en": "The script creates three fictional TXT files, one differing only in case and whitespace. The observed run retains two records, skips one duplicate, and produces three events and thirteen intact audit entries with the rule-based linker. This run uses regex NER fallback; an installed medspaCy environment is identified in ner_engine."
+        },
+        "image": {
+          "light": "/assets/presentation/process-light.svg",
+          "dark": "/assets/presentation/process-dark.svg",
+          "alt": {
+            "zh": "从输入到结果",
+            "en": "From input to result"
+          }
+        }
+      },
+      {
+        "title": {
+          "zh": "实现中的分工",
+          "en": "How the implementation fits together"
+        },
+        "body": {
+          "zh": "ingest 按文件类型提取文本，dedup 计算规范化文本哈希。resolve 使用 medspaCy 或 regex 路径抽取实体，Linker 使用配置的 Ollama 或规则回退。TimelineAssembler 合并编码、日期及证据，State 保存 JSON；AuditChain 记录每步输入/输出哈希并链接前一条记录。",
+          "en": "ingest extracts text by file type and dedup hashes normalized text. resolve extracts entities through medspaCy or regex; Linker uses the configured Ollama endpoint or rule fallback. TimelineAssembler combines codes, dates and evidence, State persists JSON, and AuditChain links per-operation input/output hashes."
+        },
+        "image": {
+          "light": "/assets/presentation/architecture-light.svg",
+          "dark": "/assets/presentation/architecture-dark.svg",
+          "alt": {
+            "zh": "实现中的分工",
+            "en": "How the implementation fits together"
+          }
+        }
+      },
+      {
+        "title": {
+          "zh": "接入现有工作流",
+          "en": "Connect existing workflows"
+        },
+        "body": {
+          "zh": "ClinRec 将本地记录经过文本去重、实体抽取和编码关联整理成时间线，并保留原文位置及各处理步骤的哈希记录。",
+          "en": "ClinRec organizes local records into timelines through text deduplication, entity extraction and coding, retaining evidence spans and hashes for processing steps."
+        },
+        "image": {
+          "light": "/assets/presentation/integrations-light.svg",
+          "dark": "/assets/presentation/integrations-dark.svg",
+          "alt": {
+            "zh": "接入现有工作流",
+            "en": "Connect existing workflows"
+          }
+        }
+      }
+    ],
+    "details": [
+      {
+        "title": {
+          "zh": "配置与边界",
+          "en": "Configuration and limits"
+        },
+        "body": {
+          "zh": "输出不是诊断、编码正确性或监管合规的保证，需专业复核。",
+          "en": "Output does not guarantee diagnosis, coding accuracy or regulatory compliance and requires professional review."
+        }
+      }
+    ]
   },
+  "demo": {
+    "title": {
+      "zh": "运行自带示例",
+      "en": "Run the supplied example"
+    },
+    "note": {
+      "zh": "v0.7.0 的本地构造样例。脚本保留一个不监听的回环端口，令真实 linker 使用已实现的规则回退；没有调用模型。结果不验证真实病历质量、OCR、模型效果或监管要求。",
+      "en": "A constructed local v0.7.0 example. A reserved, non-listening loopback port makes the real linker use its implemented rule fallback; no model is called. Results do not validate clinical records, OCR, model quality or regulatory requirements."
+    },
+    "source": "https://github.com/SuperMarioYL/clinrec/blob/main/docs/demo-results.json",
+    "steps": [
+      {
+        "label": {
+          "zh": "运行 1",
+          "en": "Run 1"
+        },
+        "body": {
+          "zh": "脚本在临时目录创建三份虚构 TXT，其中一份仅大小写和空白不同。实际保留 2 条记录、跳过 1 条重复，使用规则 linker 得到 3 个事件和 13 条完整哈希链记录。本次运行的 NER 是 regex 回退；安装 medspaCy 后 ner_engine 字段会体现相应路径。",
+          "en": "The script creates three fictional TXT files, one differing only in case and whitespace. The observed run retains two records, skips one duplicate, and produces three events and thirteen intact audit entries with the rule-based linker. This run uses regex NER fallback; an installed medspaCy environment is identified in ner_engine."
+        },
+        "image": "/assets/presentation/demo-0-light.svg",
+        "imageDark": "/assets/presentation/demo-0-dark.svg",
+        "command": "python examples/presentation_demo.py",
+        "output": "{\n  \"records\": 2,\n  \"duplicates_skipped\": 1,\n  \"ner_engine\": \"regex\",\n  \"model_reachable\": false,\n  \"events\": 3,\n  \"linker_modes\": [\n    \"rule-based\"\n  ],\n  \"audit_entries\": 13,\n  \"chain_integrity\": true\n}\n"
+      }
+    ]
+  },
+  "quickstart": {
+    "title": {
+      "zh": "运行完整示例",
+      "en": "Run the complete example"
+    },
+    "body": {
+      "zh": "需要 Python 3.12+。完整安装包括 NLP/OCR 客户端依赖；图片 OCR 还需系统 Tesseract。TXT 示例不需要 OCR 或模型权重。",
+      "en": "Requires Python 3.12+. Full installation includes NLP/OCR client dependencies; image OCR also requires system Tesseract. The TXT demo requires neither OCR nor model weights."
+    },
+    "steps": [
+      {
+        "title": {
+          "zh": "准备环境",
+          "en": "Prepare the environment"
+        },
+        "code": "git clone https://github.com/SuperMarioYL/clinrec.git\ncd clinrec\npython3 -m venv .venv\nsource .venv/bin/activate\npython -m pip install -e ."
+      },
+      {
+        "title": {
+          "zh": "运行本地示例",
+          "en": "Run the local example"
+        },
+        "code": "python examples/presentation_demo.py"
+      }
+    ]
+  },
+  "limitations": [
+    {
+      "zh": "输出不是诊断、编码正确性或监管合规的保证，需专业复核。",
+      "en": "Output does not guarantee diagnosis, coding accuracy or regulatory compliance and requires professional review."
+    },
+    {
+      "zh": "默认本地端点不等于强制网络隔离；应核查实际服务配置与数据流。",
+      "en": "A local default endpoint does not enforce network isolation; inspect actual service configuration and data flow."
+    }
+  ],
   "footer": {
     "tag": {
-      "zh": "本地化临床时间线原语 —— 病历不出院",
-      "en": "The on-prem clinical-timeline primitive — PHI never leaves the box"
+      "zh": "Python 3.12+ · MIT",
+      "en": "Python 3.12+ · MIT"
     }
   }
 }
