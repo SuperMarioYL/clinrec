@@ -148,6 +148,10 @@ def run_eval(
     llm_metrics = LinkMetrics()
     base_metrics = LinkMetrics()
     per_item: list[dict] = []
+    # Distinct engines that actually produced the scored link results, so the
+    # report names the engine behind the numbers rather than the configured
+    # tag (v0.8.0 — fix-eval-report-wrong-linker-engine).
+    used_engines: set[str] = set()
 
     for item in gold:
         try:
@@ -156,6 +160,7 @@ def run_eval(
             continue
         span = str(item["text"])
         lr: LinkResult = linker.link(span, etype)
+        used_engines.add(lr.llm_model_id)
         rb_code, rb_sys, rb_conf = rule_based_code(span, etype)
         ok_llm = _score(lr.normalized_code, lr.code_sys, item, llm_metrics)
         ok_base = _score(rb_code, rb_sys, item, base_metrics)
@@ -173,10 +178,28 @@ def run_eval(
             }
         )
 
+    # v0.8.0 — fix-eval-report-wrong-linker-engine: report the engine that
+    # actually produced the scored links, derived from the observed
+    # LinkResult.llm_model_id values. Previously this recorded
+    # linker.model (the CONFIGURED Ollama tag), so with the daemon down —
+    # a fresh clone or CI, which runs `clinrec eval` with no Ollama — every
+    # link came from the rule-based fallback while the report printed
+    # "Linker engine: `llama3.1:8b-instruct`", attributing rule-based
+    # numbers to the on-prem LLM (the same wrong-producer-id class as the
+    # v0.2.0/v0.6.0 audit extractor-id fixes).
+    if not used_engines:
+        llm_engine = linker.model  # no links scored — nothing to misattribute
+    elif used_engines == {"rule-based"}:
+        llm_engine = "rule-based"
+    elif "rule-based" in used_engines:
+        llm_engine = f"{linker.model} + rule-based fallback"
+    else:
+        llm_engine = linker.model
+
     return EvalReport(
         linker_metrics=llm_metrics,
         baseline_metrics=base_metrics,
-        llm_model_id=linker.model,
+        llm_model_id=llm_engine,
         uses_medspacy=extractor.uses_medspacy,
         per_item=per_item,
     )

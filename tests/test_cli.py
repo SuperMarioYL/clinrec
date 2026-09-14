@@ -31,7 +31,7 @@ def _write_sample(folder: Path) -> None:
 def test_cli_version():
     res = runner.invoke(app, ["version"])
     assert res.exit_code == 0
-    assert "0.7.0" in res.stdout
+    assert "0.8.0" in res.stdout
 
 
 def test_cli_init_writes_config(tmp_path, monkeypatch):
@@ -347,3 +347,51 @@ def test_cli_audit_verify_fails_on_phi_egress_tampered(tmp_path, monkeypatch):
     assert "FAIL" in res.stdout
     assert "phi_egress" in res.stdout
     assert "invariant" in res.stdout
+
+
+def test_cli_ingest_missing_folder_clean_error(tmp_path, monkeypatch):
+    """v0.8.0 fix-ingest-bad-folder-traceback — a missing/invalid folder is
+    the most common first-run error (the README quickstart's first argument);
+    it must exit 1 with a clean message, not a raw NotADirectoryError
+    traceback, mirroring every other user-input failure in this CLI."""
+    monkeypatch.chdir(tmp_path)
+    res = runner.invoke(app, ["ingest", str(tmp_path / "nope")])
+    assert res.exit_code == 1
+    assert "not a directory" in res.stdout
+    # a clean typer.Exit (SystemExit), not the unhandled NotADirectoryError
+    # that previously propagated out of ingest_folder
+    assert not isinstance(res.exception, NotADirectoryError)
+
+
+def test_cli_state_dir_config_roundtrip(tmp_path, monkeypatch):
+    """v0.8.0 fix-state-dir-config-ignored-on-read — ingest honors the
+    clinrec.toml state_dir; timeline and audit must read the state from the
+    SAME configured directory instead of the hardcoded ./.clinrec default
+    (previously both readers exited 1 with a false 'No state found')."""
+    monkeypatch.chdir(tmp_path)
+    # a dead loopback port keeps the linker deterministically rule-based
+    (tmp_path / "clinrec.toml").write_text(
+        'ollama_host = "http://127.0.0.1:1"\n'
+        'ollama_model = "llama3.1:8b-instruct"\n'
+        'state_dir = "custom-state"\n',
+        encoding="utf-8",
+    )
+    sample = tmp_path / "records"
+    sample.mkdir()
+    _write_sample(sample)
+
+    res = runner.invoke(app, ["ingest", str(sample)])
+    assert res.exit_code == 0, res.stdout
+    assert (tmp_path / "custom-state" / "state.json").exists()
+    assert not (tmp_path / ".clinrec").exists()  # state went to the config dir
+
+    res = runner.invoke(app, ["timeline", "--json"])
+    assert res.exit_code == 0, res.output
+    events = json.loads(res.stdout)
+    assert len(events) > 0
+    assert not (tmp_path / ".clinrec").exists()  # reader did not fall back
+
+    res = runner.invoke(app, ["audit", "--export", str(tmp_path / "audit.jsonl")])
+    assert res.exit_code == 0, res.output
+    lines = (tmp_path / "audit.jsonl").read_text().strip().splitlines()
+    assert len(lines) > 0

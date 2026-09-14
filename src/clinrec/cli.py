@@ -73,6 +73,19 @@ def _read_config(path: Path) -> dict:
     return cfg
 
 
+def _state_from_config() -> State:
+    """State read from the clinrec.toml ``state_dir`` — the same key ingest honors.
+
+    v0.8.0 — fix-state-dir-config-ignored-on-read: the timeline and audit
+    commands previously constructed ``State()`` bare, hardcoding the default
+    ".clinrec", while ingest honored the configured ``state_dir``. An operator
+    with a customized state_dir got a working ``clinrec ingest`` followed by
+    "No state found" from every reader command.
+    """
+    cfg = _read_config(Path("clinrec.toml"))
+    return State(cfg.get("state_dir", ".clinrec"))
+
+
 def _ingest_extractor_id(mime: str) -> str:
     """Map a record mime to the on-prem extractor that produced its text.
 
@@ -152,7 +165,15 @@ def ingest(
     dedup = Deduplicator()
 
     console.rule(f"[bold]Ingesting[/bold] {folder}")
-    records, dedup = ingest_folder(folder, dedup=dedup)
+    # v0.8.0 — fix-ingest-bad-folder-traceback: a typo'd or missing folder is
+    # the most common first-run error; print a clean message and exit 1 like
+    # every other user-input failure in this CLI instead of leaking the raw
+    # NotADirectoryError traceback from ingest_folder.
+    try:
+        records, dedup = ingest_folder(folder, dedup=dedup)
+    except NotADirectoryError:
+        console.print(f"[red]folder not found or not a directory:[/red] {folder}")
+        raise typer.Exit(code=1)
     if not records:
         console.print("[yellow]No records ingested (folder empty or all duplicates).[/yellow]")
         raise typer.Exit(code=1)
@@ -202,7 +223,9 @@ def timeline(
     ),
 ) -> None:
     """Browse the de-duplicated timeline (Rich TUI), or emit events as JSON."""
-    state = State()
+    # v0.8.0 — fix-state-dir-config-ignored-on-read: read the state from the
+    # configured state_dir (same key ingest honors), not the hardcoded default.
+    state = _state_from_config()
     if not state.exists():
         console.print("[yellow]No state found. Run [cyan]clinrec ingest <folder>[/cyan] first.[/yellow]")
         raise typer.Exit(code=1)
@@ -275,7 +298,10 @@ def audit(
         )
         raise typer.Exit(code=0)
 
-    state = State()
+    # v0.8.0 — fix-state-dir-config-ignored-on-read: read the state from the
+    # configured state_dir (same key ingest honors), not the hardcoded default.
+    # (--verify takes an explicit state.json path and is unaffected.)
+    state = _state_from_config()
     if not state.exists():
         console.print("[yellow]No state found. Run [cyan]clinrec ingest <folder>[/cyan] first.[/yellow]")
         raise typer.Exit(code=1)

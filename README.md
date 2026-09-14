@@ -98,7 +98,7 @@ Deduplication collapses whitespace and case; it is not fuzzy semantic matching. 
 
 ## Recorded demo
 
-A constructed local v0.7.0 example. A reserved, non-listening loopback port makes the real linker use its implemented rule fallback; no model is called. Results do not validate clinical records, OCR, model quality or regulatory requirements.
+A constructed local v0.8.0 example. A reserved, non-listening loopback port makes the real linker use its implemented rule fallback; no model is called. Results do not validate clinical records, OCR, model quality or regulatory requirements.
 
 [Inputs, commands and complete output](docs/demo-results.json)
 

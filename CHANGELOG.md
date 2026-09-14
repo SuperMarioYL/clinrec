@@ -5,6 +5,14 @@ All notable changes to ClinRec are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-09-14
+
+### Fixed
+
+- **fix-eval-report-wrong-linker-engine** (`src/clinrec/eval.py`): `run_eval` set `EvalReport.llm_model_id = linker.model` — the *configured* Ollama model tag — regardless of which engine actually produced the scored links. With Ollama unavailable (a fresh clone, or CI, whose smoke test runs `clinrec eval` with no daemon), every `LinkResult` came from the rule-based fallback (`llm_model_id="rule-based"`) while the report printed "Linker engine: `llama3.1:8b-instruct`", attributing rule-based numbers to the on-prem LLM — the same wrong-producer-id class as the v0.2.0 `.txt`→`pdfplumber` and v0.6.0 `.rtf`→`text` audit fixes, on the killer-falsifier quality surface. The report now derives the engine from the observed `LinkResult.llm_model_id` values: `rule-based` when every link was rule-based, `<model> + rule-based fallback` on a mix, the model tag when the LLM produced every link.
+- **fix-state-dir-config-ignored-on-read** (`src/clinrec/cli.py`): the `state_dir` key in `clinrec.toml` was honored by `clinrec ingest` (`State(cfg.get("state_dir", ...))`) but the reader commands constructed bare `State()`, hardcoding `./.clinrec` — so an operator with a customized `state_dir` got a successful ingest followed by `clinrec timeline` / `clinrec audit --export` exiting 1 with a false "No state found", breaking the documented write→read round-trip. Both reader commands now build the state location from the same config via a shared `_state_from_config()` helper (`audit --verify` takes an explicit path and is unaffected).
+- **fix-ingest-bad-folder-traceback** (`src/clinrec/cli.py`): `clinrec ingest <missing-or-invalid-folder>` crashed with a raw `NotADirectoryError` traceback from `ingest_folder` (the folder is the first argument of the README quickstart, making it the likeliest first-run crash), while every other user-input failure in the same CLI prints a clean message and exits 1. The ingest command now catches `NotADirectoryError`, prints `folder not found or not a directory: <folder>` and exits 1.
+
 ## [0.7.0] - 2026-08-31
 
 ### Fixed

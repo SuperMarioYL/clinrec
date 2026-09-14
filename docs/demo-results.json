@@ -1,5 +1,5 @@
 {
-  "version": "0.7.0",
+  "version": "0.8.0",
   "fixture": "Three constructed TXT notes, including a normalized duplicate. Real ingest, available NER path, rule-based fallback, timeline and audit-chain check. No clinical benchmark or OCR/model-service acceptance.",
   "steps": [
     {

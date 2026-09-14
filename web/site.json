@@ -11,7 +11,7 @@
   "meta": {
     "visual_profile": "neon-particle",
     "demo_source": "docs/demo-results.json",
-    "implementation_version": "0.7.0"
+    "implementation_version": "0.8.0"
   },
   "hero": {
     "eyebrow": {
@@ -175,8 +175,8 @@
       "en": "Run the supplied example"
     },
     "note": {
-      "zh": "v0.7.0 的本地构造样例。脚本保留一个不监听的回环端口，令真实 linker 使用已实现的规则回退；没有调用模型。结果不验证真实病历质量、OCR、模型效果或监管要求。",
-      "en": "A constructed local v0.7.0 example. A reserved, non-listening loopback port makes the real linker use its implemented rule fallback; no model is called. Results do not validate clinical records, OCR, model quality or regulatory requirements."
+      "zh": "v0.8.0 的本地构造样例。脚本保留一个不监听的回环端口，令真实 linker 使用已实现的规则回退；没有调用模型。结果不验证真实病历质量、OCR、模型效果或监管要求。",
+      "en": "A constructed local v0.8.0 example. A reserved, non-listening loopback port makes the real linker use its implemented rule fallback; no model is called. Results do not validate clinical records, OCR, model quality or regulatory requirements."
     },
     "source": "https://github.com/SuperMarioYL/clinrec/blob/main/docs/demo-results.json",
     "steps": [
