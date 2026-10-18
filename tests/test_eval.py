@@ -1,7 +1,9 @@
 """m1: killer-falsifier eval harness — linker vs rule-based baseline."""
 from __future__ import annotations
 
-from clinrec.eval import EMBEDDED_GOLD, EvalReport, LinkMetrics, run_eval
+import pytest
+
+from clinrec.eval import EMBEDDED_GOLD, EvalReport, LinkMetrics, load_gold, run_eval
 
 
 def test_run_eval_returns_metrics():
@@ -80,3 +82,28 @@ def test_eval_reports_rule_based_engine_when_ollama_down():
     ][0]
     assert "rule-based" in engine_line
     assert "llama3.1" not in engine_line
+
+
+def test_load_gold_missing_path_raises(tmp_path):
+    """v0.9.0 fix-eval-gold-path-silent-fallback — an explicitly requested
+    gold file that does not exist raises FileNotFoundError instead of silently
+    substituting EMBEDDED_GOLD (the report must reflect the set the operator
+    asked to score; a typo'd path previously scored the embedded set, exit 0,
+    with no indication)."""
+    with pytest.raises(FileNotFoundError):
+        load_gold(tmp_path / "nope.jsonl")
+
+
+def test_run_eval_skips_malformed_gold_rows():
+    """v0.9.0 fix-eval-gold-path-silent-fallback (adjacent surface) — a gold
+    row with a valid type but a missing text field (or a non-dict row) is
+    skipped like a bad-type row instead of crashing run_eval with a raw
+    KeyError/TypeError."""
+    gold = [
+        {"text": "diabetes", "type": "CONDITION", "code": "E11.9", "system": "ICD-10"},
+        {"type": "CONDITION", "code": "I10"},  # missing text
+        "not-a-dict",  # non-dict row
+    ]
+    report = run_eval(gold=gold)
+    assert report.linker_metrics.n == 1
+    assert report.linker_metrics.f1 == 1.0

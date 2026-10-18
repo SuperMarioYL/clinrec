@@ -101,10 +101,17 @@ class EvalReport:
 
 
 def load_gold(path: Path | str) -> list[dict]:
-    """Load a gold set from a JSON-lines file (one item per line)."""
+    """Load a gold set from a JSON-lines file (one item per line).
+
+    v0.9.0 — fix-eval-gold-path-silent-fallback: an explicitly requested gold
+    file that does not exist raises FileNotFoundError instead of silently
+    substituting EMBEDDED_GOLD — the killer-falsifier report must reflect the
+    set the operator asked to score, and a typo'd path previously produced an
+    exit-0 report over the embedded items with no indication.
+    """
     p = Path(path)
     if not p.exists():
-        return list(EMBEDDED_GOLD)
+        raise FileNotFoundError(f"gold file not found: {p}")
     out: list[dict] = []
     with p.open("r", encoding="utf-8") as fh:
         for line in fh:
@@ -154,11 +161,15 @@ def run_eval(
     used_engines: set[str] = set()
 
     for item in gold:
+        # v0.9.0 — fix-eval-gold-path-silent-fallback: the guard covers the
+        # whole row read (type + text, non-dict rows) so a malformed line in
+        # an operator-supplied gold file is skipped like a bad-type row
+        # instead of crashing run_eval with a raw KeyError/TypeError.
         try:
             etype = EntityType(item["type"])
-        except (KeyError, ValueError):
+            span = str(item["text"])
+        except (KeyError, TypeError, ValueError):
             continue
-        span = str(item["text"])
         lr: LinkResult = linker.link(span, etype)
         used_engines.add(lr.llm_model_id)
         rb_code, rb_sys, rb_conf = rule_based_code(span, etype)

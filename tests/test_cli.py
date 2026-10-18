@@ -31,7 +31,7 @@ def _write_sample(folder: Path) -> None:
 def test_cli_version():
     res = runner.invoke(app, ["version"])
     assert res.exit_code == 0
-    assert "0.8.0" in res.stdout
+    assert "0.9.0" in res.stdout
 
 
 def test_cli_init_writes_config(tmp_path, monkeypatch):
@@ -43,6 +43,29 @@ def test_cli_init_writes_config(tmp_path, monkeypatch):
     body = cfg.read_text()
     assert "ollama_host" in body
     assert "llama3.1:8b-instruct" in body
+    # v0.9.0 fix-init-clobbers-state-dir: a fresh init still writes the default
+    assert 'state_dir = ".clinrec"' in body
+
+
+def test_cli_init_preserves_custom_state_dir(tmp_path, monkeypatch):
+    """v0.9.0 fix-init-clobbers-state-dir — state_dir has no CLI flag (hand-
+    editing clinrec.toml is the only way to set it) and v0.8.0 made it the
+    honored round-trip location for every command; re-running init to change
+    the Ollama endpoint must keep it instead of silently resetting it to
+    '.clinrec' and orphaning the operator's state directory."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "clinrec.toml").write_text(
+        'ollama_host = "http://10.0.0.5:11434"\n'
+        'ollama_model = "llama3.1:8b-instruct"\n'
+        'state_dir = "custom-state"\n',
+        encoding="utf-8",
+    )
+    res = runner.invoke(app, ["init", "--host", "http://127.0.0.1:1"])
+    assert res.exit_code == 0, res.stdout
+    body = (tmp_path / "clinrec.toml").read_text()
+    assert 'state_dir = "custom-state"' in body
+    # init's managed keys still update from the CLI options
+    assert 'ollama_host = "http://127.0.0.1:1"' in body
 
 
 def test_cli_ingest_creates_state_and_summary(tmp_path, monkeypatch):
@@ -395,3 +418,42 @@ def test_cli_state_dir_config_roundtrip(tmp_path, monkeypatch):
     assert res.exit_code == 0, res.output
     lines = (tmp_path / "audit.jsonl").read_text().strip().splitlines()
     assert len(lines) > 0
+
+
+def test_cli_audit_verify_malformed_state_clean_error(tmp_path, monkeypatch):
+    """v0.9.0 fix-audit-verify-malformed-state-traceback — a structurally
+    corrupt (yet valid-JSON) state file must exit 1 with a clean FAIL naming
+    the path, not leak the raw KeyError/TypeError/ValidationError traceback
+    that AuditChain.from_state raises for malformed rows. --verify is the
+    regulator's attestation surface; a corrupt chain is exactly what it must
+    report cleanly, mirroring every other user-input failure in this CLI."""
+    monkeypatch.chdir(tmp_path)
+    malformed_files = [
+        # a row missing audit_id (the reproduced KeyError)
+        '{"audit_chain": [{"op": "ingest", "input_sha256": "abc"}]}',
+        # audit_chain not a list
+        '{"audit_chain": "not-a-list"}',
+        # wrong-typed field (pydantic ValidationError)
+        '{"audit_chain": [{"audit_id": "a1", "op": "ingest", "input_sha256": 123}]}',
+    ]
+    for i, payload in enumerate(malformed_files):
+        bad = tmp_path / f"bad{i}.json"
+        bad.write_text(payload, encoding="utf-8")
+        res = runner.invoke(app, ["audit", "--verify", str(bad)])
+        assert res.exit_code == 1, res.stdout
+        assert "could not parse state file" in res.stdout
+        assert "Traceback" not in res.output
+
+
+def test_cli_eval_missing_gold_clean_error(tmp_path, monkeypatch):
+    """v0.9.0 fix-eval-gold-path-silent-fallback — an explicitly requested
+    gold file that does not exist is a clean CLI error (exit 1), not a silent
+    exit-0 report scoring the embedded gold set with no indication that the
+    requested file was never read."""
+    monkeypatch.chdir(tmp_path)
+    res = runner.invoke(app, ["eval", "--gold", "missing-gold.jsonl"])
+    assert res.exit_code == 1
+    assert "gold file not found" in res.stdout
+    # no eval report is printed over the wrong (embedded) set
+    assert "ClinRec Eval" not in res.stdout
+    assert "Traceback" not in res.output

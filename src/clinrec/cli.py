@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Optional
 
 import typer
+from pydantic import ValidationError
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -47,14 +48,14 @@ CONFIG_DEFAULTS = {
 }
 
 
-def _write_config(path: Path, host: str, model: str) -> Path:
+def _write_config(path: Path, host: str, model: str, state_dir: str = ".clinrec") -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     body = (
         "# clinrec local config — operator-managed, never shipped.\n"
         "# PHI never leaves this host; ollama runs on-box.\n"
         f'ollama_host = "{host}"\n'
         f'ollama_model = "{model}"\n'
-        'state_dir = ".clinrec"\n'
+        f'state_dir = "{state_dir}"\n'
     )
     path.write_text(body, encoding="utf-8")
     return path
@@ -117,7 +118,15 @@ def init(
 ) -> None:
     """Detect Ollama, validate the clinical NER engine, write ./clinrec.toml."""
     cfg_path = Path("clinrec.toml")
-    _write_config(cfg_path, host, model)
+    # v0.9.0 — fix-init-clobbers-state-dir: state_dir has no CLI flag (hand-
+    # editing clinrec.toml is the only way to set it) and v0.8.0 made it the
+    # honored round-trip location for ingest/timeline/audit, so re-running
+    # init to change the Ollama endpoint must not silently reset it.
+    # _read_config merges the existing file over the defaults, preserving a
+    # customized value while a fresh init still writes ".clinrec".
+    _write_config(
+        cfg_path, host, model, state_dir=_read_config(cfg_path).get("state_dir", ".clinrec")
+    )
     console.print(f"[green]wrote[/green] {cfg_path}")
 
     # Probe Ollama (graceful — the linker falls back to rule-based if down).
@@ -274,8 +283,19 @@ def audit(
         except (OSError, json.JSONDecodeError) as exc:
             console.print(f"[red]could not read state:[/red] {verify} ({exc})")
             raise typer.Exit(code=1)
-        rows = data.get("audit_chain", []) if isinstance(data, dict) else []
-        chain = AuditChain.from_state(rows)
+        # v0.9.0 — fix-audit-verify-malformed-state-traceback: a structurally
+        # corrupt (yet valid-JSON) state file — rows missing audit_id/op/
+        # input_sha256, wrong-typed fields, or audit_chain not a list — must
+        # print a clean FAIL like every other user-input failure, not leak the
+        # raw KeyError/TypeError/AttributeError/ValidationError traceback that
+        # AuditChain.from_state raises for malformed rows.
+        try:
+            rows = data.get("audit_chain", []) if isinstance(data, dict) else []
+            chain = AuditChain.from_state(rows)
+        except (KeyError, TypeError, AttributeError, ValidationError) as exc:
+            detail = " ".join(str(exc).split())
+            console.print(f"[red]FAIL[/red] — could not parse state file: {verify} ({detail})")
+            raise typer.Exit(code=1)
         broken = chain.first_broken_link()
         if broken is not None:
             idx, entry = broken
@@ -336,7 +356,17 @@ def eval(
     """Run the killer-falsifier: on-prem NER+linker vs medspaCy-only baseline."""
     from .eval import load_gold
 
-    gold_set = load_gold(gold) if gold is not None else None
+    gold_set = None
+    if gold is not None:
+        # v0.9.0 — fix-eval-gold-path-silent-fallback: an explicitly requested
+        # gold file that does not exist is a clean CLI error (like every other
+        # user-input failure), not a silent substitution of the embedded set —
+        # the report must reflect the set the operator asked to score.
+        try:
+            gold_set = load_gold(gold)
+        except FileNotFoundError:
+            console.print(f"[red]gold file not found:[/red] {gold}")
+            raise typer.Exit(code=1)
     report = run_eval(gold=gold_set)
     console.print(Panel.fit(report.to_markdown(), title="ClinRec Eval", border_style="cyan"))
     if report.linker_metrics.f1 >= report.baseline_metrics.f1:
