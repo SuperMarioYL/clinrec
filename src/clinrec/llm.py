@@ -159,9 +159,30 @@ def rule_based_code(span: str, entity_type: EntityType) -> tuple[str, CodeSystem
 
     if key in table:
         return table[key], sys_, 0.95
-    # substring match: any table key appears inside the (normalized) span
+    # v0.10.0 — fix-rule-based-code-first-substring-wins: one span can contain
+    # several canonical keys ("type 1 diabetes mellitus" contains both "type 1
+    # diabetes" and "diabetes mellitus"; "insulin lispro 100 units" contains
+    # "insulin" and "insulin lispro"). Returning the first dict-order hit coded
+    # the mention as whichever key the table listed first, so a type-1 mention
+    # became E11.9 (type 2) and a specific insulin became the generic CUI.
+    # Code the term the mention leads with: earliest occurrence in the span,
+    # then the longest key at that position.
+    best: Optional[tuple[tuple[int, int], str]] = None
     for k, code in table.items():
-        if k and (k in key or key in k):
+        if not k:
+            continue
+        pos = key.find(k)
+        if pos < 0:
+            continue
+        rank = (pos, -len(k))
+        if best is None or rank < best[0]:
+            best = (rank, code)
+    if best is not None:
+        return best[1], sys_, 0.70
+    # The span may be a fragment of a canonical key ("echo" in
+    # "echocardiogram"); prefer the longest such key.
+    for k, code in sorted(table.items(), key=lambda kv: -len(kv[0])):
+        if k and key in k:
             return code, sys_, 0.70
     return "", CodeSystem.UNKNOWN, 0.0
 

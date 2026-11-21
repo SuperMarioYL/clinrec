@@ -33,12 +33,18 @@ apples-to-apples. The verdict is `PASS` when the on-prem linker's F1 is
 ## Running it
 
 ```bash
-# default: the embedded curated gold set (22 de-identified items)
+# default: the embedded curated gold set (12 de-identified items)
 clinrec eval
 
 # against a custom gold JSON-lines file
 clinrec eval --gold tests/gold.jsonl
 ```
+
+A missing path, an unreadable file or a malformed JSON line is a clean error
+naming the path (and line); the command exits 1 instead of falling back to a
+different set. A gold set with no scorable rows — an empty file, or rows the
+scorer skips — is also an error: there is no measurement to report, so the
+harness prints UNVERIFIED instead of a PASS/FAIL verdict (v0.10.0).
 
 The gold file is one JSON object per line:
 
@@ -77,7 +83,7 @@ and `llama3.1:8b-instruct` is pulled:
 | Precision | 1.000          | 1.000               |
 | Recall    | 1.000          | 1.000               |
 | F1        | 1.000          | 1.000               |
-| TP/FP/FN  | 22/0/0         | 22/0/0              |
+| TP/FP/FN  | 12/0/0         | 12/0/0              |
 ```
 
 The curated gold set is intentionally built so the rule-based coder clears

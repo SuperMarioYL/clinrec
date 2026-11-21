@@ -8,6 +8,7 @@ state are plain JSON so a regulator or operator can inspect them directly.
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -17,6 +18,16 @@ from .models import ClinicalTimeline, Entity, Record, TimelineEvent
 
 DEFAULT_STATE_DIR = ".clinrec"
 DEFAULT_STATE_FILE = "state.json"
+
+
+class StateError(Exception):
+    """The persisted state file is unreadable or structurally invalid.
+
+    v0.10.0 — fix-state-load-corrupt-traceback: the store owns the state file
+    format, so it also owns reporting a corrupt file as one error type; the CLI
+    read commands translate this into a clean message instead of leaking a
+    JSONDecodeError/AttributeError traceback.
+    """
 
 
 class State:
@@ -69,21 +80,38 @@ class State:
         return self.path
 
     def load(self) -> tuple[ClinicalTimeline, Deduplicator, dict]:
-        with self.path.open("r", encoding="utf-8") as fh:
-            data = json.load(fh)
-        records = [Record(**r) for r in data.get("records", [])]
-        entities = [Entity(**e) for e in data.get("entities", [])]
-        events = [TimelineEvent(**ev) for ev in data.get("events", [])]
-        audit = AuditChain.from_state(data.get("audit_chain", []))
-        dedup = Deduplicator.from_state(data.get("dedup", {}))
+        try:
+            data = json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise StateError(f"{self.path}: {exc}") from exc
+        if not isinstance(data, dict):
+            raise StateError(
+                f"{self.path}: expected a JSON object, got {type(data).__name__}"
+            )
+        try:
+            records = [Record(**r) for r in data.get("records", [])]
+            entities = [Entity(**e) for e in data.get("entities", [])]
+            events = [TimelineEvent(**ev) for ev in data.get("events", [])]
+            audit = AuditChain.from_state(data.get("audit_chain", []))
+            dedup = Deduplicator.from_state(data.get("dedup", {}))
+            # v0.10.0 — quality-state-created-at-roundtrip: save() writes
+            # created_at; load() used to drop it and stamp the read time.
+            created_at = (
+                datetime.fromisoformat(data["created_at"])
+                if data.get("created_at")
+                else None
+            )
+        except (AttributeError, TypeError, ValueError, KeyError) as exc:
+            raise StateError(f"{self.path}: malformed state: {exc}") from exc
         timeline = ClinicalTimeline(
             patient_pseudonym=data.get("patient_pseudonym", "patient-local"),
             records=records,
             entities=entities,
             events=events,
             audit_chain=audit.entries,
+            **({"created_at": created_at} if created_at is not None else {}),
         )
         return timeline, dedup, data.get("config", {})
 
 
-__all__ = ["State"]
+__all__ = ["State", "StateError"]

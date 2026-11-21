@@ -3,7 +3,15 @@ from __future__ import annotations
 
 import pytest
 
-from clinrec.eval import EMBEDDED_GOLD, EvalReport, LinkMetrics, load_gold, run_eval
+from clinrec.eval import (
+    EMBEDDED_GOLD,
+    EmptyGoldSetError,
+    EvalReport,
+    GoldFileError,
+    LinkMetrics,
+    load_gold,
+    run_eval,
+)
 
 
 def test_run_eval_returns_metrics():
@@ -107,3 +115,37 @@ def test_run_eval_skips_malformed_gold_rows():
     report = run_eval(gold=gold)
     assert report.linker_metrics.n == 1
     assert report.linker_metrics.f1 == 1.0
+
+
+def test_eval_empty_gold_set_is_an_error():
+    """v0.10.0 fix-eval-empty-gold-set-passes — a gold set with zero scorable
+    items is not a measurement. Previously every metric stayed 0.0 on both
+    sides and the 0.0 >= 0.0 comparison printed PASS (exit 0), so an empty or
+    wholly unparsable gold file looked like the killer-falsifier had passed."""
+    with pytest.raises(EmptyGoldSetError):
+        run_eval(gold=[])
+    with pytest.raises(EmptyGoldSetError):
+        run_eval(gold=[{"type": "CONDITION", "code": "I10"}])  # no text -> skipped
+
+
+def test_zero_item_report_does_not_pass():
+    """v0.10.0 — even a directly constructed zero-item report must not claim
+    PASS off two degenerate 0.0 F1 values."""
+    report = EvalReport(linker_metrics=LinkMetrics(), baseline_metrics=LinkMetrics())
+    md = report.to_markdown()
+    assert "UNVERIFIED" in md
+    assert "PASS" not in md
+
+
+def test_load_gold_malformed_line_names_line(tmp_path):
+    """v0.10.0 fix-eval-gold-input-verdict — a malformed JSON line in an
+    operator gold file is a clean, located error instead of an uncaught
+    JSONDecodeError traceback out of the eval command."""
+    p = tmp_path / "bad.jsonl"
+    p.write_text(
+        '{"text": "diabetes", "type": "CONDITION", "code": "E11.9"}\nnot-json\n',
+        encoding="utf-8",
+    )
+    with pytest.raises(GoldFileError) as exc:
+        load_gold(p)
+    assert "line 2" in str(exc.value)

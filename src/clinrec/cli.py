@@ -26,10 +26,10 @@ from .dedup import Deduplicator
 from .ingest import ingest_folder
 from .llm import DEFAULT_HOST, DEFAULT_MODEL, Linker
 from .resolve import EntityExtractor
-from .store import State
+from .store import State, StateError
 from .timeline import TimelineAssembler
 from .tui import run_timeline_tui
-from .eval import run_eval
+from .eval import EmptyGoldSetError, GoldFileError, run_eval
 
 app = typer.Typer(
     name="clinrec",
@@ -85,6 +85,22 @@ def _state_from_config() -> State:
     """
     cfg = _read_config(Path("clinrec.toml"))
     return State(cfg.get("state_dir", ".clinrec"))
+
+
+def _load_state(state: State) -> tuple:
+    """Load the persisted state or exit 1 with a clean message.
+
+    v0.10.0 — fix-state-load-corrupt-traceback: a truncated or wrong-shaped
+    state.json is operator-local working state, not a programming error. Both
+    default read commands share this handler so the file format's failure mode
+    is reported once, the same way ``audit --verify`` already reports a bad
+    explicit path.
+    """
+    try:
+        return state.load()
+    except StateError as exc:
+        console.print(f"[red]could not read state:[/red] {exc}")
+        raise typer.Exit(code=1)
 
 
 def _ingest_extractor_id(mime: str) -> str:
@@ -238,7 +254,7 @@ def timeline(
     if not state.exists():
         console.print("[yellow]No state found. Run [cyan]clinrec ingest <folder>[/cyan] first.[/yellow]")
         raise typer.Exit(code=1)
-    tl, _dedup, _cfg = state.load()
+    tl, _dedup, _cfg = _load_state(state)
     if json_out:
         # v0.4.0 feat-timeline-json-export: machine-readable resolved timeline
         # for a regulator/CI/agent consumer (the TUI is human-only; audit
@@ -289,8 +305,23 @@ def audit(
         # print a clean FAIL like every other user-input failure, not leak the
         # raw KeyError/TypeError/AttributeError/ValidationError traceback that
         # AuditChain.from_state raises for malformed rows.
+        rows = data.get("audit_chain", []) if isinstance(data, dict) else []
+        if not isinstance(rows, list):
+            console.print(
+                f"[red]FAIL[/red] — could not parse state file: {verify} "
+                "(audit_chain must be a list)"
+            )
+            raise typer.Exit(code=1)
+        # v0.10.0 — fix-audit-verify-empty-chain-pass: a readable JSON file with
+        # no entries (a config, a truncated export, `{}`) previously produced
+        # "PASS (0 entries)" because both chain checks are vacuously true on an
+        # empty chain. Attesting zero entries is not an attestation.
+        if not rows:
+            console.print(
+                f"[red]FAIL[/red] — no audit entries in state file: {verify}"
+            )
+            raise typer.Exit(code=1)
         try:
-            rows = data.get("audit_chain", []) if isinstance(data, dict) else []
             chain = AuditChain.from_state(rows)
         except (KeyError, TypeError, AttributeError, ValidationError) as exc:
             detail = " ".join(str(exc).split())
@@ -325,7 +356,7 @@ def audit(
     if not state.exists():
         console.print("[yellow]No state found. Run [cyan]clinrec ingest <folder>[/cyan] first.[/yellow]")
         raise typer.Exit(code=1)
-    tl, _dedup, _cfg = state.load()
+    tl, _dedup, _cfg = _load_state(state)
     chain = AuditChain.from_state([e.model_dump(mode="json") for e in tl.audit_chain])
 
     if show or export is None:
@@ -362,12 +393,25 @@ def eval(
         # gold file that does not exist is a clean CLI error (like every other
         # user-input failure), not a silent substitution of the embedded set —
         # the report must reflect the set the operator asked to score.
+        #
+        # v0.10.0 — fix-eval-gold-input-verdict: an unreadable file or a
+        # malformed JSON line is reported with its path/line, not as a raw
+        # traceback out of load_gold.
         try:
             gold_set = load_gold(gold)
         except FileNotFoundError:
             console.print(f"[red]gold file not found:[/red] {gold}")
             raise typer.Exit(code=1)
-    report = run_eval(gold=gold_set)
+        except GoldFileError as exc:
+            console.print(f"[red]could not read gold file:[/red] {exc}")
+            raise typer.Exit(code=1)
+    # v0.10.0 — fix-eval-empty-gold-set-passes: a zero-item set is not a
+    # measurement, so it must not print a PASS verdict.
+    try:
+        report = run_eval(gold=gold_set)
+    except EmptyGoldSetError as exc:
+        console.print(f"[red]eval cannot produce a verdict:[/red] {exc}")
+        raise typer.Exit(code=1)
     console.print(Panel.fit(report.to_markdown(), title="ClinRec Eval", border_style="cyan"))
     if report.linker_metrics.f1 >= report.baseline_metrics.f1:
         console.print("[green]PASS[/green] — on-prem linker clears the medspaCy-only baseline.")
@@ -375,9 +419,23 @@ def eval(
         console.print("[red]FAIL[/red] — on-prem linker does NOT clear the baseline bar.")
 
 
+def _print_version(value: bool) -> None:
+    """Eager ``--version`` handler (v0.10.0: only `clinrec version` existed)."""
+    if value:
+        console.print(f"clinrec {__version__}")
+        raise typer.Exit()
+
+
 @app.callback()
 def main(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable debug logging."),
+    show_version: bool = typer.Option(
+        False,
+        "--version",
+        callback=_print_version,
+        is_eager=True,
+        help="Print the clinrec version and exit.",
+    ),
 ) -> None:
     """On-prem clinical-timeline primitive. PHI never leaves the host."""
     level = logging.DEBUG if verbose else logging.WARNING

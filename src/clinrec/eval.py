@@ -43,6 +43,20 @@ EMBEDDED_GOLD = [
 ]
 
 
+class EmptyGoldSetError(ValueError):
+    """The gold set yielded no scorable items, so there is no verdict to report.
+
+    v0.10.0 — fix-eval-empty-gold-set-passes: an empty (or wholly unparsable)
+    gold set previously left every metric at 0.0 and the 0.0 >= 0.0 comparison
+    printed PASS, presenting a non-measurement as evidence the killer-falsifier
+    cleared its bar.
+    """
+
+
+class GoldFileError(ValueError):
+    """A gold JSONL file could not be read or parsed (the message locates it)."""
+
+
 @dataclass
 class LinkMetrics:
     tp: int = 0
@@ -91,6 +105,14 @@ class EvalReport:
             f"| {self.baseline_metrics.tp}/{self.baseline_metrics.fp}/{self.baseline_metrics.fn} |",
             "",
         ]
+        # v0.10.0 — fix-eval-empty-gold-set-passes: never read two degenerate
+        # 0.0 scores as a measured PASS.
+        if self.linker_metrics.n == 0:
+            lines.append(
+                "**Verdict:** UNVERIFIED — no scorable gold items; there is no "
+                "measurement to compare."
+            )
+            return "\n".join(lines)
         clears_baseline = self.linker_metrics.f1 >= self.baseline_metrics.f1
         lines.append(
             f"**Verdict:** {'PASS' if clears_baseline else 'FAIL'} — "
@@ -108,17 +130,27 @@ def load_gold(path: Path | str) -> list[dict]:
     substituting EMBEDDED_GOLD — the killer-falsifier report must reflect the
     set the operator asked to score, and a typo'd path previously produced an
     exit-0 report over the embedded items with no indication.
+
+    v0.10.0 — fix-eval-gold-input-verdict: an unreadable file or a malformed
+    JSON line raises GoldFileError naming the path and line, instead of leaking
+    a raw OSError/JSONDecodeError traceback out of the eval command.
     """
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(f"gold file not found: {p}")
+    try:
+        text = p.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise GoldFileError(f"{p}: {exc}") from exc
     out: list[dict] = []
-    with p.open("r", encoding="utf-8") as fh:
-        for line in fh:
-            line = line.strip()
-            if not line:
-                continue
+    for lineno, line in enumerate(text.splitlines(), 1):
+        line = line.strip()
+        if not line:
+            continue
+        try:
             out.append(json.loads(line))
+        except json.JSONDecodeError as exc:
+            raise GoldFileError(f"{p}: line {lineno}: {exc.msg}") from exc
     return out
 
 
@@ -189,6 +221,14 @@ def run_eval(
             }
         )
 
+    # v0.10.0 — fix-eval-empty-gold-set-passes: zero scored rows mean there is
+    # no measurement. Previously every metric stayed 0.0 and the downstream
+    # 0.0 >= 0.0 comparison reported PASS for an empty or wholly malformed set.
+    if llm_metrics.n == 0:
+        raise EmptyGoldSetError(
+            "no scorable gold items (the set is empty or every row was malformed)"
+        )
+
     # v0.8.0 — fix-eval-report-wrong-linker-engine: report the engine that
     # actually produced the scored links, derived from the observed
     # LinkResult.llm_model_id values. Previously this recorded
@@ -216,4 +256,12 @@ def run_eval(
     )
 
 
-__all__ = ["EMBEDDED_GOLD", "EvalReport", "LinkMetrics", "load_gold", "run_eval"]
+__all__ = [
+    "EMBEDDED_GOLD",
+    "EmptyGoldSetError",
+    "EvalReport",
+    "GoldFileError",
+    "LinkMetrics",
+    "load_gold",
+    "run_eval",
+]

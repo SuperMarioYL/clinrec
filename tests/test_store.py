@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
+
+import pytest
 
 from clinrec.audit import AuditChain
 from clinrec.dedup import Deduplicator, content_sha256
@@ -15,7 +18,7 @@ from clinrec.models import (
     ClinicalTimeline,
     EventStatus,
 )
-from clinrec.store import State
+from clinrec.store import State, StateError
 
 
 def _timeline() -> ClinicalTimeline:
@@ -78,3 +81,35 @@ def test_state_json_is_inspectable(tmp_path):
     data = json.loads(state.path.read_text())
     assert data["patient_pseudonym"] == "p1"
     assert "records" in data and "events" in data and "audit_chain" in data
+
+
+def test_state_load_preserves_created_at(tmp_path):
+    """v0.10.0 quality-state-created-at-roundtrip — save writes
+    ClinicalTimeline.created_at but load used to drop it, stamping the read
+    time instead. The persisted ingest timestamp must survive the round-trip."""
+    state = State(state_dir=tmp_path / ".clinrec")
+    tl = _timeline()
+    tl.created_at = datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc)
+    state.save(tl, Deduplicator())
+    loaded_tl, _, _ = state.load()
+    assert loaded_tl.created_at == tl.created_at
+
+
+def test_state_load_truncated_json_raises_state_error(tmp_path):
+    """v0.10.0 fix-state-load-corrupt-traceback — a truncated operator state
+    file surfaces as one owning StateError, not a raw JSONDecodeError."""
+    state = State(state_dir=tmp_path / ".clinrec")
+    state.dir.mkdir(parents=True)
+    state.path.write_text('{"records": [', encoding="utf-8")
+    with pytest.raises(StateError):
+        state.load()
+
+
+def test_state_load_non_object_document_raises_state_error(tmp_path):
+    """v0.10.0 fix-state-load-corrupt-traceback — valid JSON of the wrong
+    shape (a list) is not a state document."""
+    state = State(state_dir=tmp_path / ".clinrec")
+    state.dir.mkdir(parents=True)
+    state.path.write_text("[]", encoding="utf-8")
+    with pytest.raises(StateError):
+        state.load()

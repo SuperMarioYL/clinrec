@@ -178,3 +178,25 @@ def test_linker_date_provider_output_sha_matches_rule_based_formula():
     assert res.output_sha256 == expected
     # the link op's output must NOT equal the input span hash (no-op)
     assert res.output_sha256 != hashlib.sha256(span.encode("utf-8")).hexdigest()
+
+
+def test_rule_based_coder_prefers_leading_diagnosis():
+    """v0.10.0 fix-rule-based-code-first-substring-wins — a span that leads with
+    a specific diagnosis must not fall back to a generic key that happens to
+    appear earlier in the lookup table. "type 1 diabetes mellitus" previously
+    returned E11.9 (type 2 diabetes) with confidence 0.70."""
+    code, sys_, conf = rule_based_code("type 1 diabetes mellitus", EntityType.CONDITION)
+    assert code == "E10.9"
+    assert sys_ == CodeSystem.ICD10
+    assert conf == 0.70
+
+
+def test_rule_based_coder_prefers_longest_drug_name():
+    """v0.10.0 fix-rule-based-code-first-substring-wins — a span naming a
+    specific formulation must code to that formulation, not the first generic
+    drug key contained in it ("insulin lispro 100 units" previously -> 253182,
+    plain insulin, instead of 253145)."""
+    code, sys_, conf = rule_based_code("insulin lispro 100 units", EntityType.MEDICATION)
+    assert code == "253145"
+    assert sys_ == CodeSystem.RXNORM
+    assert conf == 0.70

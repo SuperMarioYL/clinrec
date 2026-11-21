@@ -11,7 +11,7 @@
   "meta": {
     "visual_profile": "neon-particle",
     "demo_source": "docs/demo-results.json",
-    "implementation_version": "0.9.0"
+    "implementation_version": "0.10.0"
   },
   "hero": {
     "eyebrow": {
@@ -163,8 +163,8 @@
           "en": "Configuration and limits"
         },
         "body": {
-          "zh": "输出不是诊断、编码正确性或监管合规的保证，需专业复核。",
-          "en": "Output does not guarantee diagnosis, coding accuracy or regulatory compliance and requires professional review."
+          "zh": "输出不是诊断、编码正确性或监管合规的保证，需专业复核。评估命令在 gold 集为空或无法解析时报错，不会给出 PASS；读取损坏的状态文件会明确报错。",
+          "en": "Output does not guarantee diagnosis, coding accuracy or regulatory compliance and requires professional review. The evaluation command errors on an empty or unparsable gold set instead of reporting a PASS, and a corrupt state file is reported as a clean error."
         }
       }
     ]

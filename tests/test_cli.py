@@ -31,7 +31,15 @@ def _write_sample(folder: Path) -> None:
 def test_cli_version():
     res = runner.invoke(app, ["version"])
     assert res.exit_code == 0
-    assert "0.9.0" in res.stdout
+    assert "0.10.0" in res.stdout
+
+
+def test_cli_version_flag():
+    """v0.10.0 — the conventional --version flag exists alongside the version
+    subcommand and reports the same number."""
+    res = runner.invoke(app, ["--version"])
+    assert res.exit_code == 0
+    assert "0.10.0" in res.stdout
 
 
 def test_cli_init_writes_config(tmp_path, monkeypatch):
@@ -456,4 +464,56 @@ def test_cli_eval_missing_gold_clean_error(tmp_path, monkeypatch):
     assert "gold file not found" in res.stdout
     # no eval report is printed over the wrong (embedded) set
     assert "ClinRec Eval" not in res.stdout
+    assert "Traceback" not in res.output
+
+
+def test_cli_eval_empty_gold_errors(tmp_path, monkeypatch):
+    """v0.10.0 fix-eval-empty-gold-set-passes — an empty (or wholly
+    unparsable) gold set is a clean error, never an exit-0 PASS over 0 items."""
+    monkeypatch.chdir(tmp_path)
+    gold = tmp_path / "empty.jsonl"
+    gold.write_text("", encoding="utf-8")
+    res = runner.invoke(app, ["eval", "--gold", str(gold)])
+    assert res.exit_code == 1, res.stdout
+    assert "no scorable gold items" in res.stdout
+    assert "PASS" not in res.stdout
+
+
+def test_cli_audit_verify_rejects_empty_chain(tmp_path, monkeypatch):
+    """v0.10.0 fix-audit-verify-empty-chain-pass — --verify is an attestation
+    surface; a readable JSON file with no audit entries must FAIL, not print
+    PASS over zero evidence."""
+    monkeypatch.chdir(tmp_path)
+    payloads = ["{}", '{"audit_chain": []}', '{"config": {"ollama_host": "x"}}']
+    for i, payload in enumerate(payloads):
+        p = tmp_path / f"empty{i}.json"
+        p.write_text(payload, encoding="utf-8")
+        res = runner.invoke(app, ["audit", "--verify", str(p)])
+        assert res.exit_code == 1, res.stdout
+        assert "no audit entries" in res.stdout
+        assert "PASS" not in res.stdout
+
+
+def test_cli_timeline_corrupt_state_clean_error(tmp_path, monkeypatch):
+    """v0.10.0 fix-state-load-corrupt-traceback — a truncated state.json is the
+    same failure class v0.9.0 fixed for --verify; the default read path must
+    also report it cleanly instead of leaking a JSONDecodeError traceback."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".clinrec").mkdir()
+    (tmp_path / ".clinrec" / "state.json").write_text('{"records": [', encoding="utf-8")
+    res = runner.invoke(app, ["timeline"])
+    assert res.exit_code == 1, res.output
+    assert "could not read state" in res.stdout
+    assert "Traceback" not in res.output
+
+
+def test_cli_audit_corrupt_state_clean_error(tmp_path, monkeypatch):
+    """v0.10.0 fix-state-load-corrupt-traceback — same clean error on the
+    audit read path, including a valid-JSON document of the wrong shape."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".clinrec").mkdir()
+    (tmp_path / ".clinrec" / "state.json").write_text("[]", encoding="utf-8")
+    res = runner.invoke(app, ["audit"])
+    assert res.exit_code == 1, res.output
+    assert "could not read state" in res.stdout
     assert "Traceback" not in res.output
